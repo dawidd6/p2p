@@ -1,6 +1,8 @@
 syntax = "proto3";
 
-option go_package = ".;proto";
+package proto;
+
+//option go_package = "github.com/dawidd6/p2p/pkg/proto;proto";
 
 service Tracker {
     rpc SayHello (HelloRequest) returns (HelloResponse);
