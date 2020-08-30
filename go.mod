@@ -1,4 +1,4 @@
-module github.com/dawidd6/peerty
+module github.com/dawidd6/p2p
 
 go 1.14
 

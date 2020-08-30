@@ -1,1 +1,1 @@
-# peerty
+# P2P

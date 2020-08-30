@@ -3,7 +3,7 @@ package main
 import "github.com/spf13/cobra"
 
 var cmdRoot = &cobra.Command{
-	Use:                        "peerty",
+	Use:                        "p2p",
 	Example:                    "",
 	Version:                    "0.1.0",
 	PersistentPreRun:           func(*cobra.Command, []string) { panic("not implemented") },
