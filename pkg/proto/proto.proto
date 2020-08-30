@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option go_package = ".;proto";
+
+service Tracker {
+    rpc SayHello (HelloRequest) returns (HelloResponse);
+}
+
+message HelloRequest {
+    string message = 1;
+}
+
+message HelloResponse {
+    string message = 1;
+}
