@@ -40,7 +40,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	server := grpc.NewServer()
-	proto.RegisterTrackerServiceService(server, &proto.TrackerServiceService{SayHello: sayHello})
+	proto.RegisterTrackerService(server, &proto.TrackerService{SayHello: sayHello})
 	if err := server.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
