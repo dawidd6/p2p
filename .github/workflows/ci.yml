@@ -16,6 +16,14 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.15.x
+      - name: Setup protoc
+        uses: arduino/setup-protoc@v1
+      - name: Install protoc plugins
+        env:
+          GO111MODULE: off
+        run: |
+          go get google.golang.org/protobuf/cmd/protoc-gen-go
+          go get google.golang.org/grpc/cmd/protoc-gen-go-grpc
       - name: Make binaries
         run: make
       - name: Make proto
