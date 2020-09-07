@@ -20,28 +20,34 @@ var cmdRoot = &cobra.Command{
 	SilenceUsage:  false,
 }
 
-func run(cmd *cobra.Command, args []string) error {
-	return cmd.Help()
-}
-
 func sayHello(ctx context.Context, in *proto.HelloRequest) (*proto.HelloResponse, error) {
 	log.Printf("Received: %v", in.Message)
 	return &proto.HelloResponse{Message: "Hello " + in.Message}, nil
+}
+
+func run(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
+
+	listener, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		return err
+	}
+
+	server := grpc.NewServer()
+	service := &proto.TrackerService{
+		SayHello: sayHello,
+	}
+
+	proto.RegisterTrackerService(server, service)
+
+	return server.Serve(listener)
 }
 
 func main() {
 	err := cmdRoot.Execute()
 	if err != nil {
 		panic(err)
-	}
-
-	lis, err := net.Listen("tcp", ":8080")
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	server := grpc.NewServer()
-	proto.RegisterTrackerService(server, &proto.TrackerService{SayHello: sayHello})
-	if err := server.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
 	}
 }
