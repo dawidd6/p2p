@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package proto;
+import "pkg/metadata/metadata.proto";
 
-option go_package = "github.com/dawidd6/p2p/pkg/proto";
+option go_package = "github.com/dawidd6/p2p/pkg/tracker";
 
 service Tracker {
     rpc Announce (AnnounceRequest) returns (AnnounceResponse);

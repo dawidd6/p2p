@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option go_package = "github.com/dawidd6/p2p/pkg/metadata";
+
+message Metadata {
+  string name = 1;
+  bytes chunk = 2;
+  int64 chunks_count = 3;
+  repeated string files = 4;
+  int64 timestamp = 5;
+}

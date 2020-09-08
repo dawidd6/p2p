@@ -1,16 +1,19 @@
 syntax = "proto3";
 
-package proto;
+import "pkg/metadata/metadata.proto";
 
-option go_package = "github.com/dawidd6/p2p/pkg/proto";
+option go_package = "github.com/dawidd6/p2p/pkg/client";
 
 service Client {
     rpc Add (AddRequest) returns (AddResponse);
     rpc Delete (DeleteRequest) returns (DeleteResponse);
     rpc List (ListRequest) returns (ListResponse);
+    rpc Start (StartRequest) returns (StartResponse);
+    rpc Stop (StopRequest) returns (StopResponse);
 }
 
 message AddRequest {
+    repeated Metadata metadata = 1;
 }
 
 message AddResponse {
@@ -28,3 +31,14 @@ message ListRequest {
 message ListResponse {
 }
 
+message StartRequest {
+}
+
+message StartResponse {
+}
+
+message StopRequest {
+}
+
+message StopResponse {
+}
