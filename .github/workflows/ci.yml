@@ -16,9 +16,9 @@ jobs:
         uses: actions/setup-go@v2
       - name: Setup protoc
         uses: arduino/setup-protoc@v1
-      - name: Make binaries
-        run: make
-      - name: Make proto
-        run: make proto-plugins proto
-      - name: Check proto
-        run: git diff --stat -- pkg/proto
+      - name: Build binaries
+        run: rake
+      - name: Generate proto
+        run: rake proto
+      - name: Check changes
+        run: git diff --stat -- pkg/
