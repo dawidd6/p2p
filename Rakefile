@@ -11,6 +11,11 @@ protos = %w[
   metadata
 ]
 
+plugins = %w[
+  google.golang.org/protobuf/cmd/protoc-gen-go
+  google.golang.org/grpc/cmd/protoc-gen-go-grpc
+]
+
 task proto: :proto_plugins do
   protos.each do |proto|
     sh "protoc --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/#{proto}/#{proto}.proto"
@@ -20,8 +25,9 @@ end
 
 task :proto_plugins do
   ENV["GO111MODULE"] = "off"
-  sh "go get google.golang.org/protobuf/cmd/protoc-gen-go"
-  sh "go get google.golang.org/grpc/cmd/protoc-gen-go-grpc"
+  plugins.each do |plugin|
+    sh "go get #{plugin}"
+  end
 end
 
 task :default do
