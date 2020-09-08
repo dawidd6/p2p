@@ -17,7 +17,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TrackerClient interface {
-	SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloResponse, error)
+	Announce(ctx context.Context, in *AnnounceRequest, opts ...grpc.CallOption) (*AnnounceResponse, error)
 }
 
 type trackerClient struct {
@@ -28,13 +28,13 @@ func NewTrackerClient(cc grpc.ClientConnInterface) TrackerClient {
 	return &trackerClient{cc}
 }
 
-var trackerSayHelloStreamDesc = &grpc.StreamDesc{
-	StreamName: "SayHello",
+var trackerAnnounceStreamDesc = &grpc.StreamDesc{
+	StreamName: "Announce",
 }
 
-func (c *trackerClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloResponse, error) {
-	out := new(HelloResponse)
-	err := c.cc.Invoke(ctx, "/proto.Tracker/SayHello", in, out, opts...)
+func (c *trackerClient) Announce(ctx context.Context, in *AnnounceRequest, opts ...grpc.CallOption) (*AnnounceResponse, error) {
+	out := new(AnnounceResponse)
+	err := c.cc.Invoke(ctx, "/proto.Tracker/Announce", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,23 +46,23 @@ func (c *trackerClient) SayHello(ctx context.Context, in *HelloRequest, opts ...
 // RegisterTrackerService is called.  Any unassigned fields will result in the
 // handler for that method returning an Unimplemented error.
 type TrackerService struct {
-	SayHello func(context.Context, *HelloRequest) (*HelloResponse, error)
+	Announce func(context.Context, *AnnounceRequest) (*AnnounceResponse, error)
 }
 
-func (s *TrackerService) sayHello(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HelloRequest)
+func (s *TrackerService) announce(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AnnounceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return s.SayHello(ctx, in)
+		return s.Announce(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     s,
-		FullMethod: "/proto.Tracker/SayHello",
+		FullMethod: "/proto.Tracker/Announce",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return s.SayHello(ctx, req.(*HelloRequest))
+		return s.Announce(ctx, req.(*AnnounceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -70,21 +70,21 @@ func (s *TrackerService) sayHello(_ interface{}, ctx context.Context, dec func(i
 // RegisterTrackerService registers a service implementation with a gRPC server.
 func RegisterTrackerService(s grpc.ServiceRegistrar, srv *TrackerService) {
 	srvCopy := *srv
-	if srvCopy.SayHello == nil {
-		srvCopy.SayHello = func(context.Context, *HelloRequest) (*HelloResponse, error) {
-			return nil, status.Errorf(codes.Unimplemented, "method SayHello not implemented")
+	if srvCopy.Announce == nil {
+		srvCopy.Announce = func(context.Context, *AnnounceRequest) (*AnnounceResponse, error) {
+			return nil, status.Errorf(codes.Unimplemented, "method Announce not implemented")
 		}
 	}
 	sd := grpc.ServiceDesc{
 		ServiceName: "proto.Tracker",
 		Methods: []grpc.MethodDesc{
 			{
-				MethodName: "SayHello",
-				Handler:    srvCopy.sayHello,
+				MethodName: "Announce",
+				Handler:    srvCopy.announce,
 			},
 		},
 		Streams:  []grpc.StreamDesc{},
-		Metadata: "pkg/proto/proto.proto",
+		Metadata: "pkg/proto/tracker.proto",
 	}
 
 	s.RegisterService(&sd, nil)
@@ -99,9 +99,9 @@ func RegisterTrackerService(s grpc.ServiceRegistrar, srv *TrackerService) {
 func NewTrackerService(s interface{}) *TrackerService {
 	ns := &TrackerService{}
 	if h, ok := s.(interface {
-		SayHello(context.Context, *HelloRequest) (*HelloResponse, error)
+		Announce(context.Context, *AnnounceRequest) (*AnnounceResponse, error)
 	}); ok {
-		ns.SayHello = h.SayHello
+		ns.Announce = h.Announce
 	}
 	return ns
 }
@@ -111,5 +111,5 @@ func NewTrackerService(s interface{}) *TrackerService {
 // definition, which is not a backward-compatible change.  For this reason,
 // use of this type is not recommended.
 type UnstableTrackerService interface {
-	SayHello(context.Context, *HelloRequest) (*HelloResponse, error)
+	Announce(context.Context, *AnnounceRequest) (*AnnounceResponse, error)
 }

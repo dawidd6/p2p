@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/dawidd6/p2p/pkg/proto";
+
+service Client {
+    rpc Add (AddRequest) returns (AddResponse);
+    rpc Delete (DeleteRequest) returns (DeleteResponse);
+    rpc List (ListRequest) returns (ListResponse);
+}
+
+message AddRequest {
+}
+
+message AddResponse {
+}
+
+message DeleteRequest {
+}
+
+message DeleteResponse {
+}
+
+message ListRequest {
+}
+
+message ListResponse {
+}
+
