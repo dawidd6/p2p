@@ -41,6 +41,12 @@ var (
 		RunE:  runCreate,
 		Args:  cobra.MinimumNArgs(1),
 	}
+	cmdAdd = &cobra.Command{
+		Use:   "add TORRENT ...",
+		Short: "Add specified torrents to client.",
+		RunE:  runAdd,
+		Args:  cobra.MinimumNArgs(1),
+	}
 
 	daemonPort  string
 	trackerPort string
@@ -54,6 +60,7 @@ func init() {
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 	cmdRoot.AddCommand(
+		cmdAdd,
 		cmdCreate,
 		cmdDaemon,
 		cmdTracker,
@@ -70,7 +77,16 @@ func runCreate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Println(torr)
+	return torr.Save()
+}
+
+func runAdd(cmd *cobra.Command, args []string) error {
+	torrents, err := torrent.Load(args)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(torrents)
 
 	return nil
 }

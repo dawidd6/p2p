@@ -4,5 +4,5 @@ option go_package = "github.com/dawidd6/p2p/piece";
 
 message Piece {
     uint64 number = 1;
-    string sha256 = 2;
+    bytes sha256 = 2;
 }

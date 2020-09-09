@@ -6,6 +6,6 @@ import "piece/piece.proto";
 
 message File {
     string name = 1;
-    string sha256 = 2;
+    bytes sha256 = 2;
     repeated Piece pieces = 3;
 }
