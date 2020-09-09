@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option go_package = "github.com/dawidd6/p2p/torrent";
+
+import "file/file.proto";
+
+message Torrent {
+    string name = 1;
+    int64 timestamp = 2;
+    repeated File files = 3;
+}

@@ -17,7 +17,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SeedClient interface {
-	Seed(ctx context.Context, in *SeedRequest, opts ...grpc.CallOption) (*SeedResponse, error)
+	Seed(ctx context.Context, opts ...grpc.CallOption) (Seed_SeedClient, error)
 }
 
 type seedClient struct {
@@ -29,16 +29,40 @@ func NewSeedClient(cc grpc.ClientConnInterface) SeedClient {
 }
 
 var seedSeedStreamDesc = &grpc.StreamDesc{
-	StreamName: "Seed",
+	StreamName:    "Seed",
+	ServerStreams: true,
+	ClientStreams: true,
 }
 
-func (c *seedClient) Seed(ctx context.Context, in *SeedRequest, opts ...grpc.CallOption) (*SeedResponse, error) {
-	out := new(SeedResponse)
-	err := c.cc.Invoke(ctx, "/Seed/Seed", in, out, opts...)
+func (c *seedClient) Seed(ctx context.Context, opts ...grpc.CallOption) (Seed_SeedClient, error) {
+	stream, err := c.cc.NewStream(ctx, seedSeedStreamDesc, "/Seed/Seed", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &seedSeedClient{stream}
+	return x, nil
+}
+
+type Seed_SeedClient interface {
+	Send(*SeedRequest) error
+	Recv() (*SeedResponse, error)
+	grpc.ClientStream
+}
+
+type seedSeedClient struct {
+	grpc.ClientStream
+}
+
+func (x *seedSeedClient) Send(m *SeedRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *seedSeedClient) Recv() (*SeedResponse, error) {
+	m := new(SeedResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // SeedService is the service API for Seed service.
@@ -46,44 +70,54 @@ func (c *seedClient) Seed(ctx context.Context, in *SeedRequest, opts ...grpc.Cal
 // RegisterSeedService is called.  Any unassigned fields will result in the
 // handler for that method returning an Unimplemented error.
 type SeedService struct {
-	Seed func(context.Context, *SeedRequest) (*SeedResponse, error)
+	Seed func(Seed_SeedServer) error
 }
 
-func (s *SeedService) seed(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SeedRequest)
-	if err := dec(in); err != nil {
+func (s *SeedService) seed(_ interface{}, stream grpc.ServerStream) error {
+	return s.Seed(&seedSeedServer{stream})
+}
+
+type Seed_SeedServer interface {
+	Send(*SeedResponse) error
+	Recv() (*SeedRequest, error)
+	grpc.ServerStream
+}
+
+type seedSeedServer struct {
+	grpc.ServerStream
+}
+
+func (x *seedSeedServer) Send(m *SeedResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *seedSeedServer) Recv() (*SeedRequest, error) {
+	m := new(SeedRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	if interceptor == nil {
-		return s.Seed(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     s,
-		FullMethod: "/Seed/Seed",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return s.Seed(ctx, req.(*SeedRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return m, nil
 }
 
 // RegisterSeedService registers a service implementation with a gRPC server.
 func RegisterSeedService(s grpc.ServiceRegistrar, srv *SeedService) {
 	srvCopy := *srv
 	if srvCopy.Seed == nil {
-		srvCopy.Seed = func(context.Context, *SeedRequest) (*SeedResponse, error) {
-			return nil, status.Errorf(codes.Unimplemented, "method Seed not implemented")
+		srvCopy.Seed = func(Seed_SeedServer) error {
+			return status.Errorf(codes.Unimplemented, "method Seed not implemented")
 		}
 	}
 	sd := grpc.ServiceDesc{
 		ServiceName: "Seed",
-		Methods: []grpc.MethodDesc{
+		Methods:     []grpc.MethodDesc{},
+		Streams: []grpc.StreamDesc{
 			{
-				MethodName: "Seed",
-				Handler:    srvCopy.seed,
+				StreamName:    "Seed",
+				Handler:       srvCopy.seed,
+				ServerStreams: true,
+				ClientStreams: true,
 			},
 		},
-		Streams:  []grpc.StreamDesc{},
 		Metadata: "seed/seed.proto",
 	}
 
@@ -98,9 +132,7 @@ func RegisterSeedService(s grpc.ServiceRegistrar, srv *SeedService) {
 // is not recommended to be used by most users.
 func NewSeedService(s interface{}) *SeedService {
 	ns := &SeedService{}
-	if h, ok := s.(interface {
-		Seed(context.Context, *SeedRequest) (*SeedResponse, error)
-	}); ok {
+	if h, ok := s.(interface{ Seed(Seed_SeedServer) error }); ok {
 		ns.Seed = h.Seed
 	}
 	return ns
@@ -111,5 +143,5 @@ func NewSeedService(s interface{}) *SeedService {
 // definition, which is not a backward-compatible change.  For this reason,
 // use of this type is not recommended.
 type UnstableSeedService interface {
-	Seed(context.Context, *SeedRequest) (*SeedResponse, error)
+	Seed(Seed_SeedServer) error
 }

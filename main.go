@@ -1,7 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"net"
+
+	"github.com/dawidd6/p2p/torrent"
+
+	"github.com/dawidd6/p2p/daemon"
 
 	"github.com/dawidd6/p2p/tracker"
 	"github.com/spf13/cobra"
@@ -31,16 +36,19 @@ var (
 		RunE:  runTracker,
 	}
 	cmdCreate = &cobra.Command{
-		Use:   "create",
-		Short: "Create metadata file.",
+		Use:   "create FILE ...",
+		Short: "Create torrent file.",
 		RunE:  runCreate,
+		Args:  cobra.MinimumNArgs(1),
 	}
 
 	daemonPort  string
 	trackerPort string
+	torrentName string
 )
 
 func init() {
+	cmdCreate.Flags().StringVarP(&torrentName, "name", "n", "", "Torrent name.")
 	cmdDaemon.Flags().StringVarP(&daemonPort, "port", "p", "0", "Port on which daemon should listen.")
 	cmdTracker.Flags().StringVarP(&trackerPort, "port", "p", "0", "Port on which tracker should listen.")
 
@@ -57,6 +65,13 @@ func run(cmd *cobra.Command, args []string) error {
 }
 
 func runCreate(cmd *cobra.Command, args []string) error {
+	torr, err := torrent.CreateTorrent(torrentName, args)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(torr)
+
 	return nil
 }
 
@@ -67,12 +82,9 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 	}
 
 	server := grpc.NewServer()
-	service := &tracker.TrackerService{
-		Announce: tracker.Announce,
-	}
+	service := &daemon.DaemonService{}
 
-	tracker.RegisterTrackerService(server, service)
-
+	daemon.RegisterDaemonService(server, service)
 	return server.Serve(listener)
 }
 
@@ -82,13 +94,14 @@ func runTracker(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	track := tracker.NewTracker()
 	server := grpc.NewServer()
 	service := &tracker.TrackerService{
-		Announce: tracker.Announce,
+		Register: track.Register,
+		Lookup:   track.Lookup,
 	}
 
 	tracker.RegisterTrackerService(server, service)
-
 	return server.Serve(listener)
 }
 

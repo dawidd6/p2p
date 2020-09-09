@@ -1,8 +1,7 @@
 syntax = "proto3";
 
-import "metadata/metadata.proto";
 import "peer/peer.proto";
-import "piece/piece.proto";
+import "torrent/torrent.proto";
 
 option go_package = "github.com/dawidd6/p2p/tracker";
 
@@ -12,15 +11,13 @@ service Tracker {
 }
 
 message RegisterRequest {
-    Metadata metadata = 1;
-    repeated PieceInfo pieces = 2;
+    repeated Torrent torrents = 1;
 }
 
 message RegisterResponse {}
 
 message LookupRequest {
-    Metadata metadata = 1;
-    PieceInfo piece = 2;
+    repeated Torrent torrents = 1;
 }
 
 message LookupResponse {

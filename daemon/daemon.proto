@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-import "metadata/metadata.proto";
-
 option go_package = "github.com/dawidd6/p2p/daemon";
+
+import "torrent/torrent.proto";
 
 service Daemon {
     rpc Add (AddRequest) returns (AddResponse);
@@ -13,41 +13,41 @@ service Daemon {
 }
 
 message AddRequest {
-    repeated Metadata metadata = 1;
+    repeated Torrent torrents = 1;
 }
 
 message AddResponse {
-    repeated uint32 ids = 1;
+    repeated Torrent torrents = 1;
 }
 
 message DeleteRequest {
-    repeated uint32 ids = 1;
+    repeated Torrent torrents = 1;
 }
 
 message DeleteResponse {
-    repeated uint32 ids = 1;
+    repeated Torrent torrents = 1;
 }
 
 message ListRequest {
-    repeated uint32 ids = 1;
+    repeated Torrent torrents = 1;
 }
 
 message ListResponse {
-    repeated Metadata metadata = 1;
+    repeated Torrent torrents = 1;
 }
 
 message StartRequest {
-    repeated uint32 ids = 1;
+    repeated Torrent torrents = 1;
 }
 
 message StartResponse {
-    repeated uint32 ids = 1;
+    repeated Torrent torrents = 1;
 }
 
 message StopRequest {
-    repeated uint32 ids = 1;
+    repeated Torrent torrents = 1;
 }
 
 message StopResponse {
-    repeated uint32 ids = 1;
+    repeated Torrent torrents = 1;
 }

@@ -1,19 +1,17 @@
 syntax = "proto3";
 
-import "metadata/metadata.proto";
-import "piece/piece.proto";
-
 option go_package = "github.com/dawidd6/p2p/seed";
 
 service Seed {
-    rpc Seed (SeedRequest) returns (SeedResponse);
+    rpc Seed (stream SeedRequest) returns (stream SeedResponse);
 }
 
 message SeedRequest {
-    Metadata metadata = 1;
-    PieceInfo piece = 2;
+    string torrent_name = 1;
+    string file_name = 2;
+    uint64 piece_number = 3;
 }
 
 message SeedResponse {
-    Piece piece = 1;
+    bytes piece_data = 1;
 }
