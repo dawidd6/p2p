@@ -248,7 +248,7 @@ func RegisterClientService(s grpc.ServiceRegistrar, srv *ClientService) {
 			},
 		},
 		Streams:  []grpc.StreamDesc{},
-		Metadata: "pkg/client/client.proto",
+		Metadata: "client/client.proto",
 	}
 
 	s.RegisterService(&sd, nil)
