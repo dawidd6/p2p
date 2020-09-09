@@ -84,7 +84,7 @@ func RegisterTrackerService(s grpc.ServiceRegistrar, srv *TrackerService) {
 			},
 		},
 		Streams:  []grpc.StreamDesc{},
-		Metadata: "pkg/tracker/tracker.proto",
+		Metadata: "tracker/tracker.proto",
 	}
 
 	s.RegisterService(&sd, nil)
