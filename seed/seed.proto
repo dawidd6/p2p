@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+import "metadata/metadata.proto";
+import "piece/piece.proto";
+
+option go_package = "github.com/dawidd6/p2p/seed";
+
+service Seed {
+    rpc Seed (SeedRequest) returns (SeedResponse);
+}
+
+message SeedRequest {
+    Metadata metadata = 1;
+    PieceInfo piece = 2;
+}
+
+message SeedResponse {
+    Piece piece = 1;
+}

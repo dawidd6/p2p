@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+option go_package = "github.com/dawidd6/p2p/peer";
+
+message Peer {
+    string address = 1;
+}
+

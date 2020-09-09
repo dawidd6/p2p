@@ -1,16 +1,28 @@
 syntax = "proto3";
 
 import "metadata/metadata.proto";
+import "peer/peer.proto";
+import "piece/piece.proto";
 
 option go_package = "github.com/dawidd6/p2p/tracker";
 
 service Tracker {
-    rpc Announce (AnnounceRequest) returns (AnnounceResponse);
+    rpc Register (RegisterRequest) returns (RegisterResponse);
+    rpc Lookup (LookupRequest) returns (LookupResponse);
 }
 
-message AnnounceRequest {
+message RegisterRequest {
+    Metadata metadata = 1;
+    repeated PieceInfo pieces = 2;
 }
 
-message AnnounceResponse {
+message RegisterResponse {}
+
+message LookupRequest {
+    Metadata metadata = 1;
+    PieceInfo piece = 2;
 }
 
+message LookupResponse {
+    repeated Peer peers = 1;
+}

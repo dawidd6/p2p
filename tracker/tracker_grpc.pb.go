@@ -17,7 +17,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TrackerClient interface {
-	Announce(ctx context.Context, in *AnnounceRequest, opts ...grpc.CallOption) (*AnnounceResponse, error)
+	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error)
+	Lookup(ctx context.Context, in *LookupRequest, opts ...grpc.CallOption) (*LookupResponse, error)
 }
 
 type trackerClient struct {
@@ -28,13 +29,26 @@ func NewTrackerClient(cc grpc.ClientConnInterface) TrackerClient {
 	return &trackerClient{cc}
 }
 
-var trackerAnnounceStreamDesc = &grpc.StreamDesc{
-	StreamName: "Announce",
+var trackerRegisterStreamDesc = &grpc.StreamDesc{
+	StreamName: "Register",
 }
 
-func (c *trackerClient) Announce(ctx context.Context, in *AnnounceRequest, opts ...grpc.CallOption) (*AnnounceResponse, error) {
-	out := new(AnnounceResponse)
-	err := c.cc.Invoke(ctx, "/Tracker/Announce", in, out, opts...)
+func (c *trackerClient) Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error) {
+	out := new(RegisterResponse)
+	err := c.cc.Invoke(ctx, "/Tracker/Register", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+var trackerLookupStreamDesc = &grpc.StreamDesc{
+	StreamName: "Lookup",
+}
+
+func (c *trackerClient) Lookup(ctx context.Context, in *LookupRequest, opts ...grpc.CallOption) (*LookupResponse, error) {
+	out := new(LookupResponse)
+	err := c.cc.Invoke(ctx, "/Tracker/Lookup", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,23 +60,41 @@ func (c *trackerClient) Announce(ctx context.Context, in *AnnounceRequest, opts 
 // RegisterTrackerService is called.  Any unassigned fields will result in the
 // handler for that method returning an Unimplemented error.
 type TrackerService struct {
-	Announce func(context.Context, *AnnounceRequest) (*AnnounceResponse, error)
+	Register func(context.Context, *RegisterRequest) (*RegisterResponse, error)
+	Lookup   func(context.Context, *LookupRequest) (*LookupResponse, error)
 }
 
-func (s *TrackerService) announce(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AnnounceRequest)
+func (s *TrackerService) register(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegisterRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return s.Announce(ctx, in)
+		return s.Register(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     s,
-		FullMethod: "/Tracker/Announce",
+		FullMethod: "/Tracker/Register",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return s.Announce(ctx, req.(*AnnounceRequest))
+		return s.Register(ctx, req.(*RegisterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+func (s *TrackerService) lookup(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LookupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return s.Lookup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     s,
+		FullMethod: "/Tracker/Lookup",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return s.Lookup(ctx, req.(*LookupRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -70,17 +102,26 @@ func (s *TrackerService) announce(_ interface{}, ctx context.Context, dec func(i
 // RegisterTrackerService registers a service implementation with a gRPC server.
 func RegisterTrackerService(s grpc.ServiceRegistrar, srv *TrackerService) {
 	srvCopy := *srv
-	if srvCopy.Announce == nil {
-		srvCopy.Announce = func(context.Context, *AnnounceRequest) (*AnnounceResponse, error) {
-			return nil, status.Errorf(codes.Unimplemented, "method Announce not implemented")
+	if srvCopy.Register == nil {
+		srvCopy.Register = func(context.Context, *RegisterRequest) (*RegisterResponse, error) {
+			return nil, status.Errorf(codes.Unimplemented, "method Register not implemented")
+		}
+	}
+	if srvCopy.Lookup == nil {
+		srvCopy.Lookup = func(context.Context, *LookupRequest) (*LookupResponse, error) {
+			return nil, status.Errorf(codes.Unimplemented, "method Lookup not implemented")
 		}
 	}
 	sd := grpc.ServiceDesc{
 		ServiceName: "Tracker",
 		Methods: []grpc.MethodDesc{
 			{
-				MethodName: "Announce",
-				Handler:    srvCopy.announce,
+				MethodName: "Register",
+				Handler:    srvCopy.register,
+			},
+			{
+				MethodName: "Lookup",
+				Handler:    srvCopy.lookup,
 			},
 		},
 		Streams:  []grpc.StreamDesc{},
@@ -99,9 +140,14 @@ func RegisterTrackerService(s grpc.ServiceRegistrar, srv *TrackerService) {
 func NewTrackerService(s interface{}) *TrackerService {
 	ns := &TrackerService{}
 	if h, ok := s.(interface {
-		Announce(context.Context, *AnnounceRequest) (*AnnounceResponse, error)
+		Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
 	}); ok {
-		ns.Announce = h.Announce
+		ns.Register = h.Register
+	}
+	if h, ok := s.(interface {
+		Lookup(context.Context, *LookupRequest) (*LookupResponse, error)
+	}); ok {
+		ns.Lookup = h.Lookup
 	}
 	return ns
 }
@@ -111,5 +157,6 @@ func NewTrackerService(s interface{}) *TrackerService {
 // definition, which is not a backward-compatible change.  For this reason,
 // use of this type is not recommended.
 type UnstableTrackerService interface {
-	Announce(context.Context, *AnnounceRequest) (*AnnounceResponse, error)
+	Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
+	Lookup(context.Context, *LookupRequest) (*LookupResponse, error)
 }

@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+option go_package = "github.com/dawidd6/p2p/file";
+
+message File {
+    string name = 1;
+    string sha256 = 2;
+}

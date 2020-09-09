@@ -2,9 +2,9 @@ syntax = "proto3";
 
 import "metadata/metadata.proto";
 
-option go_package = "github.com/dawidd6/p2p/client";
+option go_package = "github.com/dawidd6/p2p/daemon";
 
-service Client {
+service Daemon {
     rpc Add (AddRequest) returns (AddResponse);
     rpc Delete (DeleteRequest) returns (DeleteResponse);
     rpc List (ListRequest) returns (ListResponse);
@@ -17,28 +17,37 @@ message AddRequest {
 }
 
 message AddResponse {
+    repeated uint32 ids = 1;
 }
 
 message DeleteRequest {
+    repeated uint32 ids = 1;
 }
 
 message DeleteResponse {
+    repeated uint32 ids = 1;
 }
 
 message ListRequest {
+    repeated uint32 ids = 1;
 }
 
 message ListResponse {
+    repeated Metadata metadata = 1;
 }
 
 message StartRequest {
+    repeated uint32 ids = 1;
 }
 
 message StartResponse {
+    repeated uint32 ids = 1;
 }
 
 message StopRequest {
+    repeated uint32 ids = 1;
 }
 
 message StopResponse {
+    repeated uint32 ids = 1;
 }
