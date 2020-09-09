@@ -7,12 +7,13 @@
 package client
 
 import (
-	metadata "github.com/dawidd6/p2p/pkg/metadata"
+	reflect "reflect"
+	sync "sync"
+
+	metadata "github.com/dawidd6/p2p/metadata"
 	proto "github.com/golang/protobuf/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	reflect "reflect"
-	sync "sync"
 )
 
 const (

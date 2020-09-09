@@ -4,15 +4,15 @@ import (
 	"context"
 	"net"
 
-	"github.com/dawidd6/p2p/pkg/tracker"
-	"github.com/dawidd6/p2p/pkg/version"
+	"github.com/dawidd6/p2p/tracker"
+	"github.com/dawidd6/p2p/version"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
 
 var cmdRoot = &cobra.Command{
-	Use:           "p2p-trackerd",
-	Short:         "P2P tracker daemon.",
+	Use:           "p2p",
+	Short:         "P2P file sharing system based on gRPC.",
 	Version:       version.Version,
 	RunE:          run,
 	SilenceErrors: false,
