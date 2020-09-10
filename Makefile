@@ -14,3 +14,6 @@ proto-plugins:
 proto: proto-plugins
 	protoc --go-grpc_out=. --go-grpc_opt=paths=source_relative *.proto
 	protoc --go_out=. --go_opt=paths=source_relative *.proto
+
+image:
+	docker build -t p2p .
