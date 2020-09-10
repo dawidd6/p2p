@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net"
 
 	"github.com/spf13/cobra"
@@ -43,17 +44,19 @@ var (
 		Args:  cobra.MinimumNArgs(1),
 	}
 
-	daemonListenAddr  string
-	trackerListenAddr string
-	torrentName       string
-	daemonAddr        string
+	daemonListenAddr  *string
+	trackerListenAddr *string
+	torrentName       *string
+	daemonAddr        *string
 )
 
 func init() {
-	cmdRoot.Flags().StringVarP(&daemonAddr, "address", "a", "localhost:8888", "Daemon address.")
-	cmdCreate.Flags().StringVarP(&torrentName, "name", "n", "", "Torrent name.")
-	cmdDaemon.Flags().StringVarP(&daemonListenAddr, "address", "a", "localhost:8888", "Address on which daemon should listen.")
-	cmdTracker.Flags().StringVarP(&trackerListenAddr, "address", "a", "localhost:8889", "Address on which tracker should listen.")
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
+	daemonAddr = cmdRoot.Flags().StringP("address", "a", "localhost:8888", "Daemon address.")
+	torrentName = cmdCreate.Flags().StringP("name", "n", "", "Torrent name.")
+	daemonListenAddr = cmdDaemon.Flags().StringP("address", "a", "localhost:8888", "Address on which daemon should listen.")
+	trackerListenAddr = cmdTracker.Flags().StringP("address", "a", "localhost:8889", "Address on which tracker should listen.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 	cmdRoot.AddCommand(
@@ -69,7 +72,9 @@ func run(cmd *cobra.Command, args []string) error {
 }
 
 func runCreate(cmd *cobra.Command, args []string) error {
-	torr, err := CreateTorrent(torrentName, args)
+	filePaths := args
+
+	torr, err := CreateTorrent(*torrentName, filePaths)
 	if err != nil {
 		return err
 	}
@@ -78,30 +83,30 @@ func runCreate(cmd *cobra.Command, args []string) error {
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
-	for _, filePath := range args {
-		torr, err := LoadTorrent(filePath)
-		if err != nil {
-			return err
-		}
+	filePath := args[0]
 
-		conn, err := grpc.Dial(daemonAddr)
-		if err != nil {
-			return err
-		}
+	torr, err := LoadTorrent(filePath)
+	if err != nil {
+		return err
+	}
 
-		request := &AddRequest{Torrent: torr}
-		client := NewDaemonClient(conn)
-		_, err = client.Add(context.TODO(), request)
-		if err != nil {
-			return err
-		}
+	conn, err := grpc.Dial(*daemonAddr, grpc.WithInsecure())
+	if err != nil {
+		return err
+	}
+
+	request := &AddRequest{Torrent: torr}
+	client := NewDaemonClient(conn)
+	_, err = client.Add(context.TODO(), request)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
 func runDaemon(cmd *cobra.Command, args []string) error {
-	listener, err := net.Listen("tcp", daemonListenAddr)
+	listener, err := net.Listen("tcp", *daemonListenAddr)
 	if err != nil {
 		return err
 	}
@@ -109,7 +114,8 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 	daemon := NewDaemon()
 	server := grpc.NewServer()
 	service := &DaemonService{
-		Add: daemon.Add,
+		Add:    daemon.Add,
+		Delete: daemon.Delete,
 	}
 
 	RegisterDaemonService(server, service)
@@ -117,7 +123,7 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 }
 
 func runTracker(cmd *cobra.Command, args []string) error {
-	listener, err := net.Listen("tcp", trackerListenAddr)
+	listener, err := net.Listen("tcp", *trackerListenAddr)
 	if err != nil {
 		return err
 	}
