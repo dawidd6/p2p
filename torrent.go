@@ -5,15 +5,17 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
-const TORRENT_EXTENSION = ".torrent.json"
+const TorrentExtension = ".torrent.json"
 
 func CreateTorrent(name string, filePaths []string) (*Torrent, error) {
 	if name == "" {
@@ -70,6 +72,10 @@ func CreateTorrent(name string, filePaths []string) (*Torrent, error) {
 }
 
 func LoadTorrent(filePath string) (*Torrent, error) {
+	if !strings.HasSuffix(filePath, TorrentExtension) {
+		return nil, errors.New(WrongTorrentExtensionError)
+	}
+
 	torrent := &Torrent{}
 
 	message, err := ioutil.ReadFile(filePath)
@@ -85,10 +91,10 @@ func LoadTorrent(filePath string) (*Torrent, error) {
 	return torrent, nil
 }
 
-func (torrent *Torrent) SaveTorrent() error {
-	filename := fmt.Sprintf("%s%s", torrent.Name, TORRENT_EXTENSION)
+func (x *Torrent) SaveTorrent() error {
+	filename := fmt.Sprintf("%s%s", x.Name, TorrentExtension)
 
-	message, err := json.MarshalIndent(torrent, "", "  ")
+	message, err := json.MarshalIndent(x, "", "  ")
 	if err != nil {
 		return err
 	}
