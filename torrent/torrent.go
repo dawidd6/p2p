@@ -3,6 +3,7 @@ package torrent
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,13 +12,15 @@ import (
 	"path/filepath"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
-	"github.com/dawidd6/p2p/file"
 	"github.com/dawidd6/p2p/piece"
+	"github.com/dawidd6/p2p/proto"
 )
 
-const TORRENT_EXTENSION = "torrent"
+const TORRENT_EXTENSION = "json"
+
+type Torrent struct {
+	*proto.Torrent
+}
 
 func CreateTorrent(name string, filePaths []string) (*Torrent, error) {
 	if name == "" {
@@ -25,9 +28,11 @@ func CreateTorrent(name string, filePaths []string) (*Torrent, error) {
 	}
 
 	torrent := &Torrent{
-		Name:      name,
-		Timestamp: time.Now().UTC().Unix(),
-		Files:     make([]*file.File, 0),
+		Torrent: &proto.Torrent{
+			Name:      name,
+			Timestamp: time.Now().UTC().Unix(),
+			Files:     make([]*proto.File, 0),
+		},
 	}
 
 	for _, filePath := range filePaths {
@@ -39,8 +44,8 @@ func CreateTorrent(name string, filePaths []string) (*Torrent, error) {
 		reader := bytes.NewReader(fileContent)
 		sha := sha256.Sum256(fileContent)
 		fileName := filepath.Base(filePath)
-		pieces := make([]*piece.Piece, 0)
-		fil := &file.File{
+		pieces := make([]*proto.Piece, 0)
+		fil := &proto.File{
 			Name:   fileName,
 			Sha256: sha[:],
 			Pieces: pieces,
@@ -59,7 +64,7 @@ func CreateTorrent(name string, filePaths []string) (*Torrent, error) {
 
 			number := uint64(i)
 			sha := sha256.Sum256(fileContent)
-			pie := &piece.Piece{
+			pie := &proto.Piece{
 				Number: number,
 				Sha256: sha[:],
 			}
@@ -73,32 +78,26 @@ func CreateTorrent(name string, filePaths []string) (*Torrent, error) {
 	return torrent, nil
 }
 
-func Load(filePaths []string) ([]*Torrent, error) {
-	torrents := make([]*Torrent, 0)
+func Load(filePath string) (*Torrent, error) {
+	torrent := &Torrent{}
 
-	for _, filePath := range filePaths {
-		torrent := &Torrent{}
-
-		message, err := ioutil.ReadFile(filePath)
-		if err != nil {
-			return nil, err
-		}
-
-		err = proto.Unmarshal(message, torrent)
-		if err != nil {
-			return nil, err
-		}
-
-		torrents = append(torrents, torrent)
+	message, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, err
 	}
 
-	return torrents, nil
+	err = json.Unmarshal(message, torrent)
+	if err != nil {
+		return nil, err
+	}
+
+	return torrent, nil
 }
 
 func (torrent *Torrent) Save() error {
 	filename := fmt.Sprintf("%s.%s", torrent.Name, TORRENT_EXTENSION)
 
-	message, err := proto.Marshal(torrent)
+	message, err := json.MarshalIndent(torrent, "", "  ")
 	if err != nil {
 		return err
 	}

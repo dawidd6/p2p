@@ -2,29 +2,29 @@ package tracker
 
 import (
 	"context"
+	"sync"
 
-	"github.com/dawidd6/p2p/torrent"
+	"github.com/dawidd6/p2p/proto"
 
 	grpeer "google.golang.org/grpc/peer"
-
-	"github.com/dawidd6/p2p/peer"
 )
 
 type Tracker struct {
-	peersToMetadata map[*peer.Peer][]*torrent.Torrent
+	peersToMetadata map[*proto.Peer][]*proto.Torrent
+	mut             sync.Mutex
 }
 
 func NewTracker() *Tracker {
-	return &Tracker{}
+	return &Tracker{
+		peersToMetadata: make(map[*proto.Peer][]*proto.Torrent, 0),
+	}
 }
 
-func (tracker *Tracker) Register(ctx context.Context, in *RegisterRequest) (*RegisterResponse, error) {
+func (tracker *Tracker) Register(ctx context.Context, in *proto.RegisterRequest) (*proto.RegisterResponse, error) {
 	pp, _ := grpeer.FromContext(ctx)
-	p := &peer.Peer{Address: pp.Addr.String()}
+	p := &proto.Peer{Address: pp.Addr.String()}
+	tracker.mut.Lock()
 	tracker.peersToMetadata[p] = in.Torrents
-	return &RegisterResponse{}, nil
-}
-
-func (tracker *Tracker) Lookup(ctx context.Context, in *LookupRequest) (*LookupResponse, error) {
-	return &LookupResponse{}, nil
+	tracker.mut.Unlock()
+	return &proto.RegisterResponse{}, nil
 }

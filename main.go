@@ -1,8 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"net"
+
+	"github.com/dawidd6/p2p/proto"
 
 	"github.com/dawidd6/p2p/torrent"
 
@@ -48,15 +50,17 @@ var (
 		Args:  cobra.MinimumNArgs(1),
 	}
 
-	daemonPort  string
-	trackerPort string
-	torrentName string
+	daemonListenAddr  string
+	trackerListenAddr string
+	torrentName       string
+	daemonAddr        string
 )
 
 func init() {
+	cmdRoot.Flags().StringVarP(&daemonAddr, "address", "a", "localhost:8888", "Daemon address.")
 	cmdCreate.Flags().StringVarP(&torrentName, "name", "n", "", "Torrent name.")
-	cmdDaemon.Flags().StringVarP(&daemonPort, "port", "p", "0", "Port on which daemon should listen.")
-	cmdTracker.Flags().StringVarP(&trackerPort, "port", "p", "0", "Port on which tracker should listen.")
+	cmdDaemon.Flags().StringVarP(&daemonListenAddr, "address", "a", "localhost:8888", "Address on which daemon should listen.")
+	cmdTracker.Flags().StringVarP(&trackerListenAddr, "address", "a", "localhost:8889", "Address on which tracker should listen.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 	cmdRoot.AddCommand(
@@ -81,43 +85,57 @@ func runCreate(cmd *cobra.Command, args []string) error {
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
-	torrents, err := torrent.Load(args)
-	if err != nil {
-		return err
-	}
+	for _, filePath := range args {
+		torr, err := torrent.Load(filePath)
+		if err != nil {
+			return err
+		}
 
-	fmt.Println(torrents)
+		conn, err := grpc.Dial(daemonAddr)
+		if err != nil {
+			return err
+		}
+
+		request := &proto.AddRequest{Torrent: torr.Torrent}
+		client := proto.NewDaemonClient(conn)
+		_, err = client.Add(context.TODO(), request)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
 func runDaemon(cmd *cobra.Command, args []string) error {
-	listener, err := net.Listen("tcp", ":"+daemonPort)
+	listener, err := net.Listen("tcp", daemonListenAddr)
 	if err != nil {
 		return err
 	}
 
+	d := daemon.NewDaemon()
 	server := grpc.NewServer()
-	service := &daemon.DaemonService{}
+	service := &proto.DaemonService{
+		Add: d.Add,
+	}
 
-	daemon.RegisterDaemonService(server, service)
+	proto.RegisterDaemonService(server, service)
 	return server.Serve(listener)
 }
 
 func runTracker(cmd *cobra.Command, args []string) error {
-	listener, err := net.Listen("tcp", ":"+trackerPort)
+	listener, err := net.Listen("tcp", trackerListenAddr)
 	if err != nil {
 		return err
 	}
 
-	track := tracker.NewTracker()
+	t := tracker.NewTracker()
 	server := grpc.NewServer()
-	service := &tracker.TrackerService{
-		Register: track.Register,
-		Lookup:   track.Lookup,
+	service := &proto.TrackerService{
+		Register: t.Register,
 	}
 
-	tracker.RegisterTrackerService(server, service)
+	proto.RegisterTrackerService(server, service)
 	return server.Serve(listener)
 }
 

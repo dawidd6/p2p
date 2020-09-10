@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-option go_package = "github.com/dawidd6/p2p/piece";
-
-message Piece {
-    uint64 number = 1;
-    bytes sha256 = 2;
-}
