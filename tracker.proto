@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option go_package = "github.com/dawidd6/p2p;main";
+
+import "torrent.proto";
+
+service Tracker {
+    rpc Register (RegisterRequest) returns (RegisterResponse);
+}
+
+message RegisterRequest {
+    repeated Torrent torrents = 1;
+}
+
+message RegisterResponse {}

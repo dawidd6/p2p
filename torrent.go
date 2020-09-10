@@ -1,38 +1,29 @@
-package torrent
+package main
 
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
 	"path/filepath"
 	"time"
-
-	"github.com/dawidd6/p2p/piece"
-	"github.com/dawidd6/p2p/proto"
 )
 
-const TORRENT_EXTENSION = "json"
-
-type Torrent struct {
-	*proto.Torrent
-}
+const TORRENT_EXTENSION = ".torrent.json"
 
 func CreateTorrent(name string, filePaths []string) (*Torrent, error) {
 	if name == "" {
-		return nil, errors.New("name of torrent can't be empty")
+		name = filePaths[0]
 	}
 
 	torrent := &Torrent{
-		Torrent: &proto.Torrent{
-			Name:      name,
-			Timestamp: time.Now().UTC().Unix(),
-			Files:     make([]*proto.File, 0),
-		},
+		Name:      name,
+		Timestamp: time.Now().UTC().Unix(),
+		Files:     make([]*File, 0),
 	}
 
 	for _, filePath := range filePaths {
@@ -42,17 +33,17 @@ func CreateTorrent(name string, filePaths []string) (*Torrent, error) {
 		}
 
 		reader := bytes.NewReader(fileContent)
-		sha := sha256.Sum256(fileContent)
+		checksum := sha256.Sum256(fileContent)
 		fileName := filepath.Base(filePath)
-		pieces := make([]*proto.Piece, 0)
-		fil := &proto.File{
+		pieces := make([]*Piece, 0)
+		file := &File{
 			Name:   fileName,
-			Sha256: sha[:],
+			Sha256: hex.EncodeToString(checksum[:]),
 			Pieces: pieces,
 		}
 
-		for i := 0; i < math.MaxInt64; i++ {
-			chunk := make([]byte, piece.PIECE_LENGTH)
+		for i := 1; i < math.MaxInt64; i++ {
+			chunk := make([]byte, PIECE_LENGTH)
 
 			_, err := reader.Read(chunk)
 			if err == io.EOF {
@@ -63,22 +54,22 @@ func CreateTorrent(name string, filePaths []string) (*Torrent, error) {
 			}
 
 			number := uint64(i)
-			sha := sha256.Sum256(fileContent)
-			pie := &proto.Piece{
+			checksum := sha256.Sum256(chunk)
+			piece := &Piece{
 				Number: number,
-				Sha256: sha[:],
+				Sha256: hex.EncodeToString(checksum[:]),
 			}
 
-			fil.Pieces = append(fil.Pieces, pie)
+			file.Pieces = append(file.Pieces, piece)
 		}
 
-		torrent.Files = append(torrent.Files, fil)
+		torrent.Files = append(torrent.Files, file)
 	}
 
 	return torrent, nil
 }
 
-func Load(filePath string) (*Torrent, error) {
+func LoadTorrent(filePath string) (*Torrent, error) {
 	torrent := &Torrent{}
 
 	message, err := ioutil.ReadFile(filePath)
@@ -94,8 +85,8 @@ func Load(filePath string) (*Torrent, error) {
 	return torrent, nil
 }
 
-func (torrent *Torrent) Save() error {
-	filename := fmt.Sprintf("%s.%s", torrent.Name, TORRENT_EXTENSION)
+func (torrent *Torrent) SaveTorrent() error {
+	filename := fmt.Sprintf("%s%s", torrent.Name, TORRENT_EXTENSION)
 
 	message, err := json.MarshalIndent(torrent, "", "  ")
 	if err != nil {

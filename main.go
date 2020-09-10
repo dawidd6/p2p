@@ -4,13 +4,6 @@ import (
 	"context"
 	"net"
 
-	"github.com/dawidd6/p2p/proto"
-
-	"github.com/dawidd6/p2p/torrent"
-
-	"github.com/dawidd6/p2p/daemon"
-
-	"github.com/dawidd6/p2p/tracker"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
@@ -76,17 +69,17 @@ func run(cmd *cobra.Command, args []string) error {
 }
 
 func runCreate(cmd *cobra.Command, args []string) error {
-	torr, err := torrent.CreateTorrent(torrentName, args)
+	torr, err := CreateTorrent(torrentName, args)
 	if err != nil {
 		return err
 	}
 
-	return torr.Save()
+	return torr.SaveTorrent()
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
 	for _, filePath := range args {
-		torr, err := torrent.Load(filePath)
+		torr, err := LoadTorrent(filePath)
 		if err != nil {
 			return err
 		}
@@ -96,8 +89,8 @@ func runAdd(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		request := &proto.AddRequest{Torrent: torr.Torrent}
-		client := proto.NewDaemonClient(conn)
+		request := &AddRequest{Torrent: torr}
+		client := NewDaemonClient(conn)
 		_, err = client.Add(context.TODO(), request)
 		if err != nil {
 			return err
@@ -113,13 +106,13 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	d := daemon.NewDaemon()
+	daemon := NewDaemon()
 	server := grpc.NewServer()
-	service := &proto.DaemonService{
-		Add: d.Add,
+	service := &DaemonService{
+		Add: daemon.Add,
 	}
 
-	proto.RegisterDaemonService(server, service)
+	RegisterDaemonService(server, service)
 	return server.Serve(listener)
 }
 
@@ -129,13 +122,13 @@ func runTracker(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	t := tracker.NewTracker()
+	tracker := NewTracker()
 	server := grpc.NewServer()
-	service := &proto.TrackerService{
-		Register: t.Register,
+	service := &TrackerService{
+		Register: tracker.Register,
 	}
 
-	proto.RegisterTrackerService(server, service)
+	RegisterTrackerService(server, service)
 	return server.Serve(listener)
 }
 

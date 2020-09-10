@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option go_package = "github.com/dawidd6/p2p;main";
+
+import "torrent.proto";
+
+service Daemon {
+    rpc Add (AddRequest) returns (AddResponse);
+    rpc Delete (DeleteRequest) returns (DeleteResponse);
+}
+
+message AddRequest {
+    Torrent torrent = 1;
+}
+
+message AddResponse {
+    Torrent torrent = 1;
+}
+
+message DeleteRequest {
+    Torrent torrent = 1;
+}
+
+message DeleteResponse {
+    Torrent torrent = 1;
+}

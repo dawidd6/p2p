@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+option go_package = "github.com/dawidd6/p2p;main";
+
+import "torrent.proto";
+
+message Peer {
+    string address = 1;
+    repeated Torrent torrents = 2;
+}
