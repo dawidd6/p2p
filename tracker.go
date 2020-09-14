@@ -2,27 +2,29 @@ package main
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"google.golang.org/grpc/peer"
 )
 
 type Tracker struct {
-	peersToMetadata map[*Peer][]*Torrent
-	mut             sync.Mutex
+	state map[string]map[*Peer][]Piece
+	mut   sync.Mutex
 }
 
 func NewTracker() *Tracker {
-	return &Tracker{
-		peersToMetadata: make(map[*Peer][]*Torrent, 0),
-	}
+	return &Tracker{}
 }
 
 func (tracker *Tracker) Register(ctx context.Context, in *RegisterRequest) (*RegisterResponse, error) {
-	pp, _ := peer.FromContext(ctx)
+	pp, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, errors.New(RegisterPeerContextNotOkError)
+	}
 	p := &Peer{Address: pp.Addr.String()}
 	tracker.mut.Lock()
-	tracker.peersToMetadata[p] = in.Torrents
+	_, ok = tracker.state[in.TorrentSha256][p]
 	tracker.mut.Unlock()
 	return &RegisterResponse{}, nil
 }

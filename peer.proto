@@ -6,5 +6,4 @@ import "torrent.proto";
 
 message Peer {
     string address = 1;
-    repeated Torrent torrents = 2;
 }
