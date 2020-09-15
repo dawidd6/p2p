@@ -70,7 +70,7 @@ func CreateTorrentFromFiles(name string, filePaths []string) (*Torrent, error) {
 		Name:      name,
 		Timestamp: uint64(time.Now().UTC().Unix()),
 		Files:     files,
-		Trackers:  make([]string, 0), // TODO customizable trackers urls
+		Trackers:  []string{"localhost:8889"}, // TODO customizable trackers urls
 	}
 
 	message, err := proto.Marshal(torrent)

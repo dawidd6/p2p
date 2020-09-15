@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"sync"
 
-	grpc_peer "google.golang.org/grpc/peer"
+	"google.golang.org/grpc/metadata"
 )
 
 type Tracker struct {
@@ -20,12 +21,15 @@ func NewTracker() *Tracker {
 }
 
 func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*AnnounceReply, error) {
-	p, ok := grpc_peer.FromContext(ctx)
+	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return nil, errors.New(RegisterPeerContextNotOkError)
+		return nil, errors.New(MetadataContextNotOkError)
 	}
 
-	peer := &Peer{Address: p.Addr.String()}
+	address := md.Get(":authority")
+	peer := &Peer{Address: address[0]}
+
+	log.Println("Announce", peer.Address)
 
 	tracker.mut.Lock()
 	_, ok = tracker.state[req.TorrentSha256]
