@@ -12,6 +12,7 @@ proto-plugins:
 	GO111MODULE=off go get google.golang.org/grpc/cmd/protoc-gen-go-grpc
 
 proto: proto-plugins
+	rm -f *.pb.go
 	protoc --go-grpc_out=. --go-grpc_opt=paths=source_relative *.proto
 	protoc --go_out=. --go_opt=paths=source_relative *.proto
 

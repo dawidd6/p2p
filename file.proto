@@ -7,6 +7,7 @@ import "piece.proto";
 message File {
     string name = 1;
     string sha256 = 2;
-    repeated Piece pieces = 3;
+    uint64 size = 3;
+    repeated Piece pieces = 4;
 }
 

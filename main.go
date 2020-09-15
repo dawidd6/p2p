@@ -47,6 +47,7 @@ var (
 	daemonListenAddr  *string
 	trackerListenAddr *string
 	torrentName       *string
+	torrentDir        *string
 	daemonAddr        *string
 )
 
@@ -55,6 +56,7 @@ func init() {
 
 	daemonAddr = cmdRoot.Flags().StringP("address", "a", "localhost:8888", "Daemon address.")
 	torrentName = cmdCreate.Flags().StringP("name", "n", "", "Torrent name.")
+	torrentDir = cmdCreate.Flags().StringP("dir", "d", "", "Where files should be stored.")
 	daemonListenAddr = cmdDaemon.Flags().StringP("address", "a", "localhost:8888", "Address on which daemon should listen.")
 	trackerListenAddr = cmdTracker.Flags().StringP("address", "a", "localhost:8889", "Address on which tracker should listen.")
 
@@ -74,18 +76,23 @@ func run(cmd *cobra.Command, args []string) error {
 func runCreate(cmd *cobra.Command, args []string) error {
 	filePaths := args
 
-	torr, err := CreateTorrent(*torrentName, filePaths)
+	torr, err := CreateTorrentFromFiles(*torrentName, filePaths)
 	if err != nil {
 		return err
 	}
 
-	return torr.SaveTorrent()
+	return torr.SaveTorrentToFile()
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
 	filePath := args[0]
 
-	torr, err := LoadTorrent(filePath)
+	torr, err := LoadTorrentFromFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	err = torr.VerifyFiles(*torrentDir)
 	if err != nil {
 		return err
 	}
@@ -114,8 +121,7 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 	daemon := NewDaemon()
 	server := grpc.NewServer()
 	service := &DaemonService{
-		Add:    daemon.Add,
-		Delete: daemon.Delete,
+		Add: daemon.Add,
 	}
 
 	RegisterDaemonService(server, service)
@@ -131,7 +137,7 @@ func runTracker(cmd *cobra.Command, args []string) error {
 	tracker := NewTracker()
 	server := grpc.NewServer()
 	service := &TrackerService{
-		Register: tracker.Register,
+		Announce: tracker.Announce,
 	}
 
 	RegisterTrackerService(server, service)

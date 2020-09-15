@@ -17,7 +17,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TrackerClient interface {
-	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error)
+	Announce(ctx context.Context, in *AnnounceRequest, opts ...grpc.CallOption) (*AnnounceReply, error)
 }
 
 type trackerClient struct {
@@ -28,13 +28,13 @@ func NewTrackerClient(cc grpc.ClientConnInterface) TrackerClient {
 	return &trackerClient{cc}
 }
 
-var trackerRegisterStreamDesc = &grpc.StreamDesc{
-	StreamName: "Register",
+var trackerAnnounceStreamDesc = &grpc.StreamDesc{
+	StreamName: "Announce",
 }
 
-func (c *trackerClient) Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error) {
-	out := new(RegisterResponse)
-	err := c.cc.Invoke(ctx, "/Tracker/Register", in, out, opts...)
+func (c *trackerClient) Announce(ctx context.Context, in *AnnounceRequest, opts ...grpc.CallOption) (*AnnounceReply, error) {
+	out := new(AnnounceReply)
+	err := c.cc.Invoke(ctx, "/Tracker/Announce", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,23 +46,23 @@ func (c *trackerClient) Register(ctx context.Context, in *RegisterRequest, opts 
 // RegisterTrackerService is called.  Any unassigned fields will result in the
 // handler for that method returning an Unimplemented error.
 type TrackerService struct {
-	Register func(context.Context, *RegisterRequest) (*RegisterResponse, error)
+	Announce func(context.Context, *AnnounceRequest) (*AnnounceReply, error)
 }
 
-func (s *TrackerService) register(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegisterRequest)
+func (s *TrackerService) announce(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AnnounceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return s.Register(ctx, in)
+		return s.Announce(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     s,
-		FullMethod: "/Tracker/Register",
+		FullMethod: "/Tracker/Announce",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return s.Register(ctx, req.(*RegisterRequest))
+		return s.Announce(ctx, req.(*AnnounceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -70,17 +70,17 @@ func (s *TrackerService) register(_ interface{}, ctx context.Context, dec func(i
 // RegisterTrackerService registers a service implementation with a gRPC server.
 func RegisterTrackerService(s grpc.ServiceRegistrar, srv *TrackerService) {
 	srvCopy := *srv
-	if srvCopy.Register == nil {
-		srvCopy.Register = func(context.Context, *RegisterRequest) (*RegisterResponse, error) {
-			return nil, status.Errorf(codes.Unimplemented, "method Register not implemented")
+	if srvCopy.Announce == nil {
+		srvCopy.Announce = func(context.Context, *AnnounceRequest) (*AnnounceReply, error) {
+			return nil, status.Errorf(codes.Unimplemented, "method Announce not implemented")
 		}
 	}
 	sd := grpc.ServiceDesc{
 		ServiceName: "Tracker",
 		Methods: []grpc.MethodDesc{
 			{
-				MethodName: "Register",
-				Handler:    srvCopy.register,
+				MethodName: "Announce",
+				Handler:    srvCopy.announce,
 			},
 		},
 		Streams:  []grpc.StreamDesc{},
@@ -99,9 +99,9 @@ func RegisterTrackerService(s grpc.ServiceRegistrar, srv *TrackerService) {
 func NewTrackerService(s interface{}) *TrackerService {
 	ns := &TrackerService{}
 	if h, ok := s.(interface {
-		Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
+		Announce(context.Context, *AnnounceRequest) (*AnnounceReply, error)
 	}); ok {
-		ns.Register = h.Register
+		ns.Announce = h.Announce
 	}
 	return ns
 }
@@ -111,5 +111,5 @@ func NewTrackerService(s interface{}) *TrackerService {
 // definition, which is not a backward-compatible change.  For this reason,
 // use of this type is not recommended.
 type UnstableTrackerService interface {
-	Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
+	Announce(context.Context, *AnnounceRequest) (*AnnounceReply, error)
 }

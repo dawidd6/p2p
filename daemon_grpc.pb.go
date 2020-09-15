@@ -18,7 +18,6 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DaemonClient interface {
 	Add(ctx context.Context, in *AddRequest, opts ...grpc.CallOption) (*AddResponse, error)
-	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
 }
 
 type daemonClient struct {
@@ -42,26 +41,12 @@ func (c *daemonClient) Add(ctx context.Context, in *AddRequest, opts ...grpc.Cal
 	return out, nil
 }
 
-var daemonDeleteStreamDesc = &grpc.StreamDesc{
-	StreamName: "Delete",
-}
-
-func (c *daemonClient) Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error) {
-	out := new(DeleteResponse)
-	err := c.cc.Invoke(ctx, "/Daemon/Delete", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // DaemonService is the service API for Daemon service.
 // Fields should be assigned to their respective handler implementations only before
 // RegisterDaemonService is called.  Any unassigned fields will result in the
 // handler for that method returning an Unimplemented error.
 type DaemonService struct {
-	Add    func(context.Context, *AddRequest) (*AddResponse, error)
-	Delete func(context.Context, *DeleteRequest) (*DeleteResponse, error)
+	Add func(context.Context, *AddRequest) (*AddResponse, error)
 }
 
 func (s *DaemonService) add(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -81,23 +66,6 @@ func (s *DaemonService) add(_ interface{}, ctx context.Context, dec func(interfa
 	}
 	return interceptor(ctx, in, info, handler)
 }
-func (s *DaemonService) delete(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return s.Delete(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     s,
-		FullMethod: "/Daemon/Delete",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return s.Delete(ctx, req.(*DeleteRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
 
 // RegisterDaemonService registers a service implementation with a gRPC server.
 func RegisterDaemonService(s grpc.ServiceRegistrar, srv *DaemonService) {
@@ -107,21 +75,12 @@ func RegisterDaemonService(s grpc.ServiceRegistrar, srv *DaemonService) {
 			return nil, status.Errorf(codes.Unimplemented, "method Add not implemented")
 		}
 	}
-	if srvCopy.Delete == nil {
-		srvCopy.Delete = func(context.Context, *DeleteRequest) (*DeleteResponse, error) {
-			return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
-		}
-	}
 	sd := grpc.ServiceDesc{
 		ServiceName: "Daemon",
 		Methods: []grpc.MethodDesc{
 			{
 				MethodName: "Add",
 				Handler:    srvCopy.add,
-			},
-			{
-				MethodName: "Delete",
-				Handler:    srvCopy.delete,
 			},
 		},
 		Streams:  []grpc.StreamDesc{},
@@ -144,11 +103,6 @@ func NewDaemonService(s interface{}) *DaemonService {
 	}); ok {
 		ns.Add = h.Add
 	}
-	if h, ok := s.(interface {
-		Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
-	}); ok {
-		ns.Delete = h.Delete
-	}
 	return ns
 }
 
@@ -158,5 +112,4 @@ func NewDaemonService(s interface{}) *DaemonService {
 // use of this type is not recommended.
 type UnstableDaemonService interface {
 	Add(context.Context, *AddRequest) (*AddResponse, error)
-	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
 }

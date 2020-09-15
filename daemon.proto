@@ -6,7 +6,6 @@ import "torrent.proto";
 
 service Daemon {
     rpc Add (AddRequest) returns (AddResponse);
-    rpc Delete (DeleteRequest) returns (DeleteResponse);
 }
 
 message AddRequest {
@@ -17,10 +16,3 @@ message AddResponse {
     Torrent torrent = 1;
 }
 
-message DeleteRequest {
-    Torrent torrent = 1;
-}
-
-message DeleteResponse {
-    Torrent torrent = 1;
-}

@@ -2,52 +2,46 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 )
 
 const TorrentExtension = ".torrent.json"
 
-func CreateTorrent(name string, filePaths []string) (*Torrent, error) {
+func CreateTorrentFromDir(name, dir string) (*Torrent, error) {
+	panic("TODO")
+	return nil, nil // TODO	recursively add files
+}
+
+func CreateTorrentFromFiles(name string, filePaths []string) (*Torrent, error) {
 	if name == "" {
 		name = filePaths[0]
 	}
 
-	torrent := &Torrent{
-		Name:      name,
-		Timestamp: time.Now().UTC().Unix(),
-		Files:     make([]*File, 0),
-	}
+	files := make([]*File, 0)
 
 	for _, filePath := range filePaths {
+		pieces := make([]*Piece, 0)
+
 		fileContent, err := ioutil.ReadFile(filePath)
 		if err != nil {
 			return nil, err
 		}
 
 		reader := bytes.NewReader(fileContent)
-		checksum := sha256.Sum256(fileContent)
-		fileName := filepath.Base(filePath)
-		pieces := make([]*Piece, 0)
-		file := &File{
-			Name:   fileName,
-			Sha256: hex.EncodeToString(checksum[:]),
-			Pieces: pieces,
-		}
 
-		for i := 1; i < math.MaxInt64; i++ {
-			chunk := make([]byte, PIECE_LENGTH)
+		for {
+			chunk := make([]byte, PieceLength)
 
-			_, err := reader.Read(chunk)
+			n, err := reader.Read(chunk)
 			if err == io.EOF {
 				break
 			}
@@ -55,35 +49,57 @@ func CreateTorrent(name string, filePaths []string) (*Torrent, error) {
 				return nil, err
 			}
 
-			number := uint64(i)
-			checksum := sha256.Sum256(chunk)
 			piece := &Piece{
-				Number: number,
-				Sha256: hex.EncodeToString(checksum[:]),
+				Sha256: Sha256Sum(chunk[:n]),
 			}
 
-			file.Pieces = append(file.Pieces, piece)
+			pieces = append(pieces, piece)
 		}
 
-		torrent.Files = append(torrent.Files, file)
+		file := &File{
+			Name:   filepath.Base(filePath),
+			Sha256: Sha256Sum(fileContent),
+			Size:   uint64(len(fileContent)),
+			Pieces: pieces,
+		}
+
+		files = append(files, file)
 	}
+
+	torrent := &Torrent{
+		Name:      name,
+		Timestamp: uint64(time.Now().UTC().Unix()),
+		Files:     files,
+		Trackers:  make([]string, 0), // TODO customizable trackers urls
+	}
+
+	message, err := proto.Marshal(torrent)
+	if err != nil {
+		return nil, err
+	}
+
+	torrent.Sha256 = Sha256Sum(message)
 
 	return torrent, nil
 }
 
-func LoadTorrent(filePath string) (*Torrent, error) {
+func LoadTorrentFromFile(filePath string) (*Torrent, error) {
 	if !strings.HasSuffix(filePath, TorrentExtension) {
 		return nil, errors.New(WrongTorrentExtensionError)
 	}
 
-	torrent := &Torrent{}
-
-	message, err := ioutil.ReadFile(filePath)
+	b, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	err = json.Unmarshal(message, torrent)
+	return LoadTorrentFromBytes(b)
+}
+
+func LoadTorrentFromBytes(b []byte) (*Torrent, error) {
+	torrent := &Torrent{}
+
+	err := json.Unmarshal(b, torrent)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +107,7 @@ func LoadTorrent(filePath string) (*Torrent, error) {
 	return torrent, nil
 }
 
-func (x *Torrent) SaveTorrent() error {
+func (x *Torrent) SaveTorrentToFile() error {
 	filename := fmt.Sprintf("%s%s", x.Name, TorrentExtension)
 
 	message, err := json.MarshalIndent(x, "", "  ")
@@ -100,4 +116,44 @@ func (x *Torrent) SaveTorrent() error {
 	}
 
 	return ioutil.WriteFile(filename, message, 0644)
+}
+
+func (x *Torrent) VerifyFiles(dir string) error {
+	return DoInDirectory(dir, func() error {
+		for _, file := range x.Files {
+			fileContent, err := ioutil.ReadFile(file.Name)
+			if err != nil {
+				return err
+			}
+
+			expected := file.Sha256
+			got := Sha256Sum(fileContent)
+
+			if got != expected {
+				fmt.Println("file:", file.Name)
+				fmt.Println("got:", got)
+				fmt.Println("expected:", expected)
+				return errors.New(FileChecksumMismatchError)
+			}
+
+			for i, piece := range file.Pieces {
+				chunk, err := ReadFilePiece(file.Name, PieceLength, i)
+				if err != nil {
+					return err
+				}
+
+				expected := piece.Sha256
+				got := Sha256Sum(chunk)
+
+				if got != expected {
+					fmt.Println("number:", i)
+					fmt.Println("got:", got)
+					fmt.Println("expected:", expected)
+					return errors.New(PieceChecksumMismatchError)
+				}
+			}
+		}
+
+		return nil
+	})
 }

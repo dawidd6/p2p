@@ -6,6 +6,8 @@ import "file.proto";
 
 message Torrent {
     string name = 1;
-    int64 timestamp = 2;
-    repeated File files = 3;
+    string sha256 = 2;
+    uint64 timestamp = 3;
+    repeated File files = 4;
+    repeated string trackers = 5;
 }

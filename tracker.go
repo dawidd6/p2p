@@ -5,26 +5,45 @@ import (
 	"errors"
 	"sync"
 
-	"google.golang.org/grpc/peer"
+	grpc_peer "google.golang.org/grpc/peer"
 )
 
 type Tracker struct {
-	state map[string]map[*Peer][]Piece
+	state map[string]map[*Peer][]*Piece
 	mut   sync.Mutex
 }
 
 func NewTracker() *Tracker {
-	return &Tracker{}
+	return &Tracker{
+		state: make(map[string]map[*Peer][]*Piece),
+	}
 }
 
-func (tracker *Tracker) Register(ctx context.Context, in *RegisterRequest) (*RegisterResponse, error) {
-	pp, ok := peer.FromContext(ctx)
+func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*AnnounceReply, error) {
+	p, ok := grpc_peer.FromContext(ctx)
 	if !ok {
 		return nil, errors.New(RegisterPeerContextNotOkError)
 	}
-	p := &Peer{Address: pp.Addr.String()}
+
+	peer := &Peer{Address: p.Addr.String()}
+
 	tracker.mut.Lock()
-	_, ok = tracker.state[in.TorrentSha256][p]
+	_, ok = tracker.state[req.TorrentSha256]
+	if !ok {
+		tracker.state[req.TorrentSha256] = make(map[*Peer][]*Piece)
+	}
+	tracker.state[req.TorrentSha256][peer] = req.TorrentPieces
+	peers := make([]*Peer, 0)
+	for p := range tracker.state[req.TorrentSha256] {
+		if p.Address == peer.Address {
+			continue
+		}
+
+		peers = append(peers, p)
+	}
 	tracker.mut.Unlock()
-	return &RegisterResponse{}, nil
+
+	return &AnnounceReply{
+		Peers: peers,
+	}, nil
 }

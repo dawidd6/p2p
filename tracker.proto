@@ -2,16 +2,22 @@ syntax = "proto3";
 
 option go_package = "github.com/dawidd6/p2p;main";
 
+import "peer.proto";
 import "piece.proto";
+import "state.proto";
 
 service Tracker {
-    rpc Register (RegisterRequest) returns (RegisterResponse);
+    rpc Announce (AnnounceRequest) returns (AnnounceReply);
 }
 
-message RegisterRequest {
-    string torrent_name = 1;
-    string torrent_sha256 = 2;
-    repeated Piece torrent_pieces = 3;
+message AnnounceRequest {
+    string torrent_sha256 = 1;
+    uint64 downloaded_bytes = 2;
+    uint64 uploaded_bytes = 3;
+    repeated Piece torrent_pieces = 4;
+    State torrent_state = 5;
 }
 
-message RegisterResponse {}
+message AnnounceReply {
+    repeated Peer peers = 1;
+}
