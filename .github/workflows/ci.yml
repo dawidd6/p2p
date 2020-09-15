@@ -20,5 +20,7 @@ jobs:
         run: make
       - name: Generate proto
         run: make proto
+      - name: Build image
+        run: make image
       - name: Check changes
         run: git diff --stat --exit-code
