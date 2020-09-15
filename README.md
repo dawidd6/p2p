@@ -7,5 +7,5 @@ A gRPC based P2P file sharing system, written in Go.
 ## Building
 
 ```shell script
-rake
+make
 ```
