@@ -123,25 +123,3 @@ func RegisterSeedService(s grpc.ServiceRegistrar, srv *SeedService) {
 
 	s.RegisterService(&sd, nil)
 }
-
-// NewSeedService creates a new SeedService containing the
-// implemented methods of the Seed service in s.  Any unimplemented
-// methods will result in the gRPC server returning an UNIMPLEMENTED status to the client.
-// This includes situations where the method handler is misspelled or has the wrong
-// signature.  For this reason, this function should be used with great care and
-// is not recommended to be used by most users.
-func NewSeedService(s interface{}) *SeedService {
-	ns := &SeedService{}
-	if h, ok := s.(interface{ Seed(Seed_SeedServer) error }); ok {
-		ns.Seed = h.Seed
-	}
-	return ns
-}
-
-// UnstableSeedService is the service API for Seed service.
-// New methods may be added to this interface if they are added to the service
-// definition, which is not a backward-compatible change.  For this reason,
-// use of this type is not recommended.
-type UnstableSeedService interface {
-	Seed(Seed_SeedServer) error
-}

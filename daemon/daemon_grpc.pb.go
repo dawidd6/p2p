@@ -89,27 +89,3 @@ func RegisterDaemonService(s grpc.ServiceRegistrar, srv *DaemonService) {
 
 	s.RegisterService(&sd, nil)
 }
-
-// NewDaemonService creates a new DaemonService containing the
-// implemented methods of the Daemon service in s.  Any unimplemented
-// methods will result in the gRPC server returning an UNIMPLEMENTED status to the client.
-// This includes situations where the method handler is misspelled or has the wrong
-// signature.  For this reason, this function should be used with great care and
-// is not recommended to be used by most users.
-func NewDaemonService(s interface{}) *DaemonService {
-	ns := &DaemonService{}
-	if h, ok := s.(interface {
-		Add(context.Context, *AddRequest) (*AddResponse, error)
-	}); ok {
-		ns.Add = h.Add
-	}
-	return ns
-}
-
-// UnstableDaemonService is the service API for Daemon service.
-// New methods may be added to this interface if they are added to the service
-// definition, which is not a backward-compatible change.  For this reason,
-// use of this type is not recommended.
-type UnstableDaemonService interface {
-	Add(context.Context, *AddRequest) (*AddResponse, error)
-}

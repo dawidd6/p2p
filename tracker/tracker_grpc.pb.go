@@ -89,27 +89,3 @@ func RegisterTrackerService(s grpc.ServiceRegistrar, srv *TrackerService) {
 
 	s.RegisterService(&sd, nil)
 }
-
-// NewTrackerService creates a new TrackerService containing the
-// implemented methods of the Tracker service in s.  Any unimplemented
-// methods will result in the gRPC server returning an UNIMPLEMENTED status to the client.
-// This includes situations where the method handler is misspelled or has the wrong
-// signature.  For this reason, this function should be used with great care and
-// is not recommended to be used by most users.
-func NewTrackerService(s interface{}) *TrackerService {
-	ns := &TrackerService{}
-	if h, ok := s.(interface {
-		Announce(context.Context, *AnnounceRequest) (*AnnounceReply, error)
-	}); ok {
-		ns.Announce = h.Announce
-	}
-	return ns
-}
-
-// UnstableTrackerService is the service API for Tracker service.
-// New methods may be added to this interface if they are added to the service
-// definition, which is not a backward-compatible change.  For this reason,
-// use of this type is not recommended.
-type UnstableTrackerService interface {
-	Announce(context.Context, *AnnounceRequest) (*AnnounceReply, error)
-}
