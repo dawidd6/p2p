@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+option go_package = "github.com/dawidd6/p2p/daemon";
+
+import "torrent/torrent.proto";
+
+service Daemon {
+    rpc Add (AddRequest) returns (AddResponse);
+}
+
+message AddRequest {
+    Torrent torrent = 1;
+}
+
+message AddResponse {
+    Torrent torrent = 1;
+}
+

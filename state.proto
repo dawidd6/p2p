@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-option go_package = "github.com/dawidd6/p2p;main";
-
-enum State {
-    UNKNOWN = 0;
-    DOWNLOADING = 1;
-    SEEDING = 2;
-}
