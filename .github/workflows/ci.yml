@@ -14,13 +14,25 @@ jobs:
         uses: actions/checkout@v2
       - name: Setup Go
         uses: actions/setup-go@v2
-      - name: Setup protoc
-        uses: arduino/setup-protoc@v1
       - name: Build binary
         run: make
+  ci-proto:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v2
+      - name: Setup protoc
+        uses: arduino/setup-protoc@v1
       - name: Generate proto
         run: make proto
-      - name: Build image
-        run: make image
       - name: Check changes
         run: git diff --stat --exit-code
+  ci-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build image
+        run: make image
