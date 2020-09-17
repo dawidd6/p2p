@@ -26,7 +26,7 @@ jobs:
       - name: Setup protoc
         uses: arduino/setup-protoc@v1
       - name: Generate proto
-        run: make proto
+        run: make proto-plugins proto
       - name: Check changes
         run: git diff --stat --exit-code
   ci-docker:
