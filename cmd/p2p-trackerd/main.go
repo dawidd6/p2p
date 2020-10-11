@@ -4,9 +4,9 @@ import (
 	"log"
 	"net"
 
-	"github.com/dawidd6/p2p/version"
-
-	"github.com/dawidd6/p2p/tracker"
+	"github.com/dawidd6/p2p/pkg/proto"
+	"github.com/dawidd6/p2p/pkg/tracker"
+	"github.com/dawidd6/p2p/pkg/version"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -32,16 +32,13 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	t := tracker.NewTracker()
-	server := grpc.NewServer()
-	service := &tracker.TrackerService{
-		Register: t.Register,
-		List:     t.List,
-	}
+	g := grpc.NewServer()
 
 	t.GoClean()
 
-	tracker.RegisterTrackerService(server, service)
-	return server.Serve(listener)
+	proto.RegisterTrackerServer(g, t)
+
+	return g.Serve(listener)
 }
 
 func main() {

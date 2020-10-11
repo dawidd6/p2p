@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/dawidd6/p2p/seed";
+option go_package = ".;proto";
 
 service Seed {
     rpc Seed (stream SeedRequest) returns (stream SeedResponse);

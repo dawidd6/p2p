@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-option go_package = "github.com/dawidd6/p2p/file";
+option go_package = ".;proto";
 
-import "piece/piece.proto";
+import "pkg/proto/piece.proto";
 
 message File {
     string name = 1;

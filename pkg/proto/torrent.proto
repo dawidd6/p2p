@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-option go_package = "github.com/dawidd6/p2p/torrent";
+option go_package = ".;proto";
 
-import "file/file.proto";
+import "pkg/proto/file.proto";
 
 message Torrent {
     string name = 1;

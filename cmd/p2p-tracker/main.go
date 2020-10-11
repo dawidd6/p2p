@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/dawidd6/p2p/version"
-
-	"github.com/dawidd6/p2p/tracker"
+	"github.com/dawidd6/p2p/pkg/proto"
+	"github.com/dawidd6/p2p/pkg/version"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -32,8 +31,8 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	request := &tracker.ListRequest{}
-	client := tracker.NewTrackerClient(conn)
+	request := &proto.ListRequest{}
+	client := proto.NewTrackerClient(conn)
 	reply, err := client.List(context.TODO(), request)
 	if err != nil {
 		return err

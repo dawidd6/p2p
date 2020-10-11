@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 
-	"github.com/dawidd6/p2p/version"
+	"github.com/dawidd6/p2p/pkg/proto"
+	"github.com/dawidd6/p2p/pkg/torrent"
+	"github.com/dawidd6/p2p/pkg/version"
 
-	"github.com/dawidd6/p2p/daemon"
-	"github.com/dawidd6/p2p/torrent"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
@@ -62,7 +62,7 @@ func runCreate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return torr.SaveTorrentToFile()
+	return torrent.SaveTorrentToFile(torr)
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
@@ -73,7 +73,7 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = torr.VerifyFiles(*torrentDir)
+	err = torrent.VerifyFiles(torr, *torrentDir)
 	if err != nil {
 		return err
 	}
@@ -83,8 +83,8 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	request := &daemon.AddRequest{Torrent: torr}
-	client := daemon.NewDaemonClient(conn)
+	request := &proto.AddRequest{Torrent: torr}
+	client := proto.NewDaemonClient(conn)
 	_, err = client.Add(context.TODO(), request)
 	if err != nil {
 		return err

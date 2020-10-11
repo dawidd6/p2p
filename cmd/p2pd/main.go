@@ -4,9 +4,10 @@ import (
 	"log"
 	"net"
 
-	"github.com/dawidd6/p2p/version"
+	"github.com/dawidd6/p2p/pkg/daemon"
+	"github.com/dawidd6/p2p/pkg/proto"
+	"github.com/dawidd6/p2p/pkg/version"
 
-	"github.com/dawidd6/p2p/daemon"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
@@ -31,14 +32,11 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	d := daemon.NewDaemon(*listenAddr)
-	server := grpc.NewServer()
-	service := &daemon.DaemonService{
-		Add: d.Add,
-	}
+	g := grpc.NewServer()
 
-	daemon.RegisterDaemonService(server, service)
+	proto.RegisterDaemonServer(g, d)
 
-	return server.Serve(listener)
+	return g.Serve(listener)
 }
 
 func main() {

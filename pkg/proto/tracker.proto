@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/dawidd6/p2p/tracker";
+option go_package = ".;proto";
 
 service Tracker {
     rpc Register (RegisterRequest) returns (RegisterReply);

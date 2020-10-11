@@ -10,31 +10,31 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dawidd6/p2p/errors"
-	"github.com/dawidd6/p2p/file"
-	"github.com/dawidd6/p2p/piece"
-	"github.com/dawidd6/p2p/utils"
+	"github.com/dawidd6/p2p/pkg/errors"
+	"github.com/dawidd6/p2p/pkg/piece"
+	"github.com/dawidd6/p2p/pkg/proto"
+	"github.com/dawidd6/p2p/pkg/utils"
 
-	"google.golang.org/protobuf/proto"
+	pb "google.golang.org/protobuf/proto"
 )
 
 const Extension = ".torrent.json"
 
-func CreateTorrentFromDir(name, dir string) (*Torrent, error) {
+func CreateTorrentFromDir(name, dir string) (*proto.Torrent, error) {
 	panic("TODO")
 	return nil, nil // TODO	recursively add files
 }
 
-func CreateTorrentFromFiles(name string, filePaths []string) (*Torrent, error) {
+func CreateTorrentFromFiles(name string, filePaths []string) (*proto.Torrent, error) {
 	if name == "" {
 		name = filePaths[0]
 	}
 
 	size := uint64(0)
-	files := make([]*file.File, 0)
+	files := make([]*proto.File, 0)
 
 	for _, filePath := range filePaths {
-		pieces := make([]*piece.Piece, 0)
+		pieces := make([]*proto.Piece, 0)
 
 		fileContent, err := ioutil.ReadFile(filePath)
 		if err != nil {
@@ -54,7 +54,7 @@ func CreateTorrentFromFiles(name string, filePaths []string) (*Torrent, error) {
 				return nil, err
 			}
 
-			p := &piece.Piece{
+			p := &proto.Piece{
 				Sha256: utils.Sha256Sum(chunk[:n]),
 			}
 
@@ -63,7 +63,7 @@ func CreateTorrentFromFiles(name string, filePaths []string) (*Torrent, error) {
 
 		size += uint64(len(fileContent))
 
-		f := &file.File{
+		f := &proto.File{
 			Name:   filepath.Base(filePath),
 			Sha256: utils.Sha256Sum(fileContent),
 			Size:   uint64(len(fileContent)),
@@ -73,7 +73,7 @@ func CreateTorrentFromFiles(name string, filePaths []string) (*Torrent, error) {
 		files = append(files, f)
 	}
 
-	torrent := &Torrent{
+	torrent := &proto.Torrent{
 		Name:      name,
 		Size:      size,
 		Timestamp: uint64(time.Now().UTC().Unix()),
@@ -81,7 +81,7 @@ func CreateTorrentFromFiles(name string, filePaths []string) (*Torrent, error) {
 		Trackers:  []string{"localhost:8889"}, // TODO customizable trackers urls
 	}
 
-	message, err := proto.Marshal(torrent)
+	message, err := pb.Marshal(torrent)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func CreateTorrentFromFiles(name string, filePaths []string) (*Torrent, error) {
 	return torrent, nil
 }
 
-func LoadTorrentFromFile(filePath string) (*Torrent, error) {
+func LoadTorrentFromFile(filePath string) (*proto.Torrent, error) {
 	if !strings.HasSuffix(filePath, Extension) {
 		return nil, errors.WrongTorrentExtensionError
 	}
@@ -104,8 +104,8 @@ func LoadTorrentFromFile(filePath string) (*Torrent, error) {
 	return LoadTorrentFromBytes(b)
 }
 
-func LoadTorrentFromBytes(b []byte) (*Torrent, error) {
-	torrent := &Torrent{}
+func LoadTorrentFromBytes(b []byte) (*proto.Torrent, error) {
+	torrent := &proto.Torrent{}
 
 	err := json.Unmarshal(b, torrent)
 	if err != nil {
@@ -115,10 +115,10 @@ func LoadTorrentFromBytes(b []byte) (*Torrent, error) {
 	return torrent, nil
 }
 
-func (x *Torrent) SaveTorrentToFile() error {
-	filename := fmt.Sprintf("%s%s", x.Name, Extension)
+func SaveTorrentToFile(torrent *proto.Torrent) error {
+	filename := fmt.Sprintf("%s%s", torrent.Name, Extension)
 
-	message, err := json.MarshalIndent(x, "", "  ")
+	message, err := json.MarshalIndent(torrent, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -126,9 +126,9 @@ func (x *Torrent) SaveTorrentToFile() error {
 	return ioutil.WriteFile(filename, message, 0644)
 }
 
-func (x *Torrent) VerifyFiles(dir string) error {
+func VerifyFiles(torrent *proto.Torrent, dir string) error {
 	return utils.DoInDirectory(dir, func() error {
-		for _, f := range x.Files {
+		for _, f := range torrent.Files {
 			fileContent, err := ioutil.ReadFile(f.Name)
 			if err != nil {
 				return err
