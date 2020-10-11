@@ -12,11 +12,13 @@ import (
 
 type Daemon struct {
 	torrents []*torrent.Torrent
+	address  string
 }
 
-func NewDaemon() *Daemon {
+func NewDaemon(address string) *Daemon {
 	return &Daemon{
 		torrents: make([]*torrent.Torrent, 0),
+		address:  address,
 	}
 }
 
@@ -27,11 +29,12 @@ func (daemon *Daemon) Add(ctx context.Context, in *AddRequest) (*AddResponse, er
 			return nil, err
 		}
 
-		request := &tracker.AnnounceRequest{
+		request := &tracker.RegisterRequest{
 			TorrentSha256: in.Torrent.Sha256,
+			PeerAddress:   daemon.address,
 		}
 		client := tracker.NewTrackerClient(conn)
-		_, err = client.Announce(context.TODO(), request)
+		_, err = client.Register(context.TODO(), request)
 		if err != nil {
 			return nil, err
 		}

@@ -30,6 +30,7 @@ func CreateTorrentFromFiles(name string, filePaths []string) (*Torrent, error) {
 		name = filePaths[0]
 	}
 
+	size := uint64(0)
 	files := make([]*file.File, 0)
 
 	for _, filePath := range filePaths {
@@ -60,6 +61,8 @@ func CreateTorrentFromFiles(name string, filePaths []string) (*Torrent, error) {
 			pieces = append(pieces, p)
 		}
 
+		size += uint64(len(fileContent))
+
 		f := &file.File{
 			Name:   filepath.Base(filePath),
 			Sha256: utils.Sha256Sum(fileContent),
@@ -72,6 +75,7 @@ func CreateTorrentFromFiles(name string, filePaths []string) (*Torrent, error) {
 
 	torrent := &Torrent{
 		Name:      name,
+		Size:      size,
 		Timestamp: uint64(time.Now().UTC().Unix()),
 		Files:     files,
 		Trackers:  []string{"localhost:8889"}, // TODO customizable trackers urls

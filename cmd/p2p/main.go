@@ -39,7 +39,7 @@ var (
 )
 
 func init() {
-	daemonAddr = cmdRoot.Flags().StringP("address", "a", "localhost:8888", "Daemon address.")
+	daemonAddr = cmdRoot.PersistentFlags().StringP("address", "a", "localhost:8888", "Daemon address.")
 	torrentName = cmdCreate.Flags().StringP("name", "n", "", "Torrent name.")
 	torrentDir = cmdCreate.Flags().StringP("dir", "d", "", "Where files should be stored.")
 

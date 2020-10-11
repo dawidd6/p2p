@@ -30,7 +30,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	d := daemon.NewDaemon()
+	d := daemon.NewDaemon(*listenAddr)
 	server := grpc.NewServer()
 	service := &daemon.DaemonService{
 		Add: d.Add,

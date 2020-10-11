@@ -17,7 +17,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TrackerClient interface {
-	Announce(ctx context.Context, in *AnnounceRequest, opts ...grpc.CallOption) (*AnnounceReply, error)
+	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterReply, error)
+	List(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListReply, error)
 }
 
 type trackerClient struct {
@@ -28,13 +29,26 @@ func NewTrackerClient(cc grpc.ClientConnInterface) TrackerClient {
 	return &trackerClient{cc}
 }
 
-var trackerAnnounceStreamDesc = &grpc.StreamDesc{
-	StreamName: "Announce",
+var trackerRegisterStreamDesc = &grpc.StreamDesc{
+	StreamName: "Register",
 }
 
-func (c *trackerClient) Announce(ctx context.Context, in *AnnounceRequest, opts ...grpc.CallOption) (*AnnounceReply, error) {
-	out := new(AnnounceReply)
-	err := c.cc.Invoke(ctx, "/Tracker/Announce", in, out, opts...)
+func (c *trackerClient) Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterReply, error) {
+	out := new(RegisterReply)
+	err := c.cc.Invoke(ctx, "/Tracker/Register", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+var trackerListStreamDesc = &grpc.StreamDesc{
+	StreamName: "List",
+}
+
+func (c *trackerClient) List(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListReply, error) {
+	out := new(ListReply)
+	err := c.cc.Invoke(ctx, "/Tracker/List", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,23 +60,41 @@ func (c *trackerClient) Announce(ctx context.Context, in *AnnounceRequest, opts 
 // RegisterTrackerService is called.  Any unassigned fields will result in the
 // handler for that method returning an Unimplemented error.
 type TrackerService struct {
-	Announce func(context.Context, *AnnounceRequest) (*AnnounceReply, error)
+	Register func(context.Context, *RegisterRequest) (*RegisterReply, error)
+	List     func(context.Context, *ListRequest) (*ListReply, error)
 }
 
-func (s *TrackerService) announce(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AnnounceRequest)
+func (s *TrackerService) register(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegisterRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return s.Announce(ctx, in)
+		return s.Register(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     s,
-		FullMethod: "/Tracker/Announce",
+		FullMethod: "/Tracker/Register",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return s.Announce(ctx, req.(*AnnounceRequest))
+		return s.Register(ctx, req.(*RegisterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+func (s *TrackerService) list(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return s.List(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     s,
+		FullMethod: "/Tracker/List",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return s.List(ctx, req.(*ListRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -70,17 +102,26 @@ func (s *TrackerService) announce(_ interface{}, ctx context.Context, dec func(i
 // RegisterTrackerService registers a service implementation with a gRPC server.
 func RegisterTrackerService(s grpc.ServiceRegistrar, srv *TrackerService) {
 	srvCopy := *srv
-	if srvCopy.Announce == nil {
-		srvCopy.Announce = func(context.Context, *AnnounceRequest) (*AnnounceReply, error) {
-			return nil, status.Errorf(codes.Unimplemented, "method Announce not implemented")
+	if srvCopy.Register == nil {
+		srvCopy.Register = func(context.Context, *RegisterRequest) (*RegisterReply, error) {
+			return nil, status.Errorf(codes.Unimplemented, "method Register not implemented")
+		}
+	}
+	if srvCopy.List == nil {
+		srvCopy.List = func(context.Context, *ListRequest) (*ListReply, error) {
+			return nil, status.Errorf(codes.Unimplemented, "method List not implemented")
 		}
 	}
 	sd := grpc.ServiceDesc{
 		ServiceName: "Tracker",
 		Methods: []grpc.MethodDesc{
 			{
-				MethodName: "Announce",
-				Handler:    srvCopy.announce,
+				MethodName: "Register",
+				Handler:    srvCopy.register,
+			},
+			{
+				MethodName: "List",
+				Handler:    srvCopy.list,
 			},
 		},
 		Streams:  []grpc.StreamDesc{},

@@ -1,8 +1,9 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
-	"net"
 
 	"github.com/dawidd6/p2p/version"
 
@@ -14,40 +15,39 @@ import (
 
 var (
 	cmdRoot = &cobra.Command{
-		Use:           "p2p-trackerd",
-		Short:         "P2P file sharing system based on gRPC. (tracker daemon)",
+		Use:           "p2p-tracker",
+		Short:         "P2P file sharing system based on gRPC. (tracker client)",
 		Version:       version.Version,
 		RunE:          run,
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}
 
-	listenAddr *string
+	trackerAddr *string
 )
 
 func run(cmd *cobra.Command, args []string) error {
-	listener, err := net.Listen("tcp", *listenAddr)
+	conn, err := grpc.Dial(*trackerAddr, grpc.WithInsecure())
 	if err != nil {
 		return err
 	}
 
-	t := tracker.NewTracker()
-	server := grpc.NewServer()
-	service := &tracker.TrackerService{
-		Register: t.Register,
-		List:     t.List,
+	request := &tracker.ListRequest{}
+	client := tracker.NewTrackerClient(conn)
+	reply, err := client.List(context.TODO(), request)
+	if err != nil {
+		return err
 	}
 
-	t.GoClean()
+	fmt.Println(reply)
 
-	tracker.RegisterTrackerService(server, service)
-	return server.Serve(listener)
+	return nil
 }
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-	listenAddr = cmdRoot.Flags().StringP("address", "a", "localhost:8889", "Address on which tracker should listen.")
+	trackerAddr = cmdRoot.Flags().StringP("address", "a", "localhost:8889", "Tracker daemon address.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 

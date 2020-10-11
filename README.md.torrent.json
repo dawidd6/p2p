@@ -1,0 +1,21 @@
+{
+  "name": "README.md",
+  "sha256": "33a03511a0ad4b8fdb8db57b5cca8a7010c93e9f4da878acedfb789628b78d24",
+  "size": 161,
+  "timestamp": 1600368149,
+  "files": [
+    {
+      "name": "README.md",
+      "sha256": "3294401ed4137939d10160d5abd7e437e441b0c1c73570c886c09aa534cade74",
+      "size": 161,
+      "pieces": [
+        {
+          "sha256": "3294401ed4137939d10160d5abd7e437e441b0c1c73570c886c09aa534cade74"
+        }
+      ]
+    }
+  ],
+  "trackers": [
+    "localhost:8889"
+  ]
+}
