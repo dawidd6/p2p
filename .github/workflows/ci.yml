@@ -16,6 +16,8 @@ jobs:
         uses: actions/setup-go@v2
       - name: Build binary
         run: make
+      - name: Test code
+        run: make test
   ci-proto:
     runs-on: ubuntu-latest
     steps:
