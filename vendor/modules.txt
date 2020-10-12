@@ -10,9 +10,10 @@ github.com/inconshreveable/mousetrap
 # github.com/spf13/cobra v1.0.0
 ## explicit
 github.com/spf13/cobra
-# github.com/spf13/pflag v1.0.3
+# github.com/spf13/pflag v1.0.5
+## explicit
 github.com/spf13/pflag
-# golang.org/x/net v0.0.0-20200904194848-62affa334b73
+# golang.org/x/net v0.0.0-20201010224723-4f7140c49acb
 ## explicit
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
@@ -20,20 +21,19 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20200905004654-be1d3432aa8f
+# golang.org/x/sys v0.0.0-20201009025420-dfb3f7c4e634
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 # golang.org/x/text v0.3.3
-## explicit
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# google.golang.org/genproto v0.0.0-20200904004341-0bd0a958aa1d
+# google.golang.org/genproto v0.0.0-20201009135657-4d944d34d83c
 ## explicit
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.33.0-dev
+# google.golang.org/grpc v1.33.0
 ## explicit
 google.golang.org/grpc
 google.golang.org/grpc/attributes
