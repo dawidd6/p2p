@@ -17,7 +17,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SeedClient interface {
-	Seed(ctx context.Context, opts ...grpc.CallOption) (Seed_SeedClient, error)
+	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
 }
 
 type seedClient struct {
@@ -28,42 +28,20 @@ func NewSeedClient(cc grpc.ClientConnInterface) SeedClient {
 	return &seedClient{cc}
 }
 
-func (c *seedClient) Seed(ctx context.Context, opts ...grpc.CallOption) (Seed_SeedClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Seed_serviceDesc.Streams[0], "/Seed/Seed", opts...)
+func (c *seedClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
+	out := new(GetResponse)
+	err := c.cc.Invoke(ctx, "/Seed/Get", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &seedSeedClient{stream}
-	return x, nil
-}
-
-type Seed_SeedClient interface {
-	Send(*SeedRequest) error
-	Recv() (*SeedResponse, error)
-	grpc.ClientStream
-}
-
-type seedSeedClient struct {
-	grpc.ClientStream
-}
-
-func (x *seedSeedClient) Send(m *SeedRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *seedSeedClient) Recv() (*SeedResponse, error) {
-	m := new(SeedResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
+	return out, nil
 }
 
 // SeedServer is the server API for Seed service.
 // All implementations must embed UnimplementedSeedServer
 // for forward compatibility
 type SeedServer interface {
-	Seed(Seed_SeedServer) error
+	Get(context.Context, *GetRequest) (*GetResponse, error)
 	mustEmbedUnimplementedSeedServer()
 }
 
@@ -71,8 +49,8 @@ type SeedServer interface {
 type UnimplementedSeedServer struct {
 }
 
-func (UnimplementedSeedServer) Seed(Seed_SeedServer) error {
-	return status.Errorf(codes.Unimplemented, "method Seed not implemented")
+func (UnimplementedSeedServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
 func (UnimplementedSeedServer) mustEmbedUnimplementedSeedServer() {}
 
@@ -87,43 +65,33 @@ func RegisterSeedServer(s *grpc.Server, srv SeedServer) {
 	s.RegisterService(&_Seed_serviceDesc, srv)
 }
 
-func _Seed_Seed_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(SeedServer).Seed(&seedSeedServer{stream})
-}
-
-type Seed_SeedServer interface {
-	Send(*SeedResponse) error
-	Recv() (*SeedRequest, error)
-	grpc.ServerStream
-}
-
-type seedSeedServer struct {
-	grpc.ServerStream
-}
-
-func (x *seedSeedServer) Send(m *SeedResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *seedSeedServer) Recv() (*SeedRequest, error) {
-	m := new(SeedRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
+func _Seed_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRequest)
+	if err := dec(in); err != nil {
 		return nil, err
 	}
-	return m, nil
+	if interceptor == nil {
+		return srv.(SeedServer).Get(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Seed/Get",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SeedServer).Get(ctx, req.(*GetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 var _Seed_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "Seed",
 	HandlerType: (*SeedServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
+	Methods: []grpc.MethodDesc{
 		{
-			StreamName:    "Seed",
-			Handler:       _Seed_Seed_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
+			MethodName: "Get",
+			Handler:    _Seed_Get_Handler,
 		},
 	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "pkg/seed/seed.proto",
 }

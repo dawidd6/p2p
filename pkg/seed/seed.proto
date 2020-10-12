@@ -3,15 +3,15 @@ syntax = "proto3";
 option go_package = "github.com/dawidd6/p2p/pkg/seed";
 
 service Seed {
-    rpc Seed (stream SeedRequest) returns (stream SeedResponse);
+    rpc Get (GetRequest) returns (GetResponse);
 }
 
-message SeedRequest {
-    string torrent_file_sha256 = 2;
-    string file_name = 3;
-    uint64 piece_number = 4;
+message GetRequest {
+    string torrent_file_sha256 = 1;
+    uint64 piece_number = 2;
 }
 
-message SeedResponse {
-    bytes piece_data = 1;
+message GetResponse {
+    bool has_piece = 1;
+    bytes piece_data = 2;
 }
