@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = ".;proto";
+option go_package = "github.com/dawidd6/p2p/pkg/piece";
 
 message Piece {
     string sha256 = 2;

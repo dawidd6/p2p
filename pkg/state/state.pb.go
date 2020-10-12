@@ -2,9 +2,9 @@
 // versions:
 // 	protoc-gen-go v1.25.0-devel
 // 	protoc        v3.13.0
-// source: pkg/proto/state.proto
+// source: pkg/state/state.proto
 
-package proto
+package state
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -53,11 +53,11 @@ func (x State) String() string {
 }
 
 func (State) Descriptor() protoreflect.EnumDescriptor {
-	return file_pkg_proto_state_proto_enumTypes[0].Descriptor()
+	return file_pkg_state_state_proto_enumTypes[0].Descriptor()
 }
 
 func (State) Type() protoreflect.EnumType {
-	return &file_pkg_proto_state_proto_enumTypes[0]
+	return &file_pkg_state_state_proto_enumTypes[0]
 }
 
 func (x State) Number() protoreflect.EnumNumber {
@@ -66,37 +66,39 @@ func (x State) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use State.Descriptor instead.
 func (State) EnumDescriptor() ([]byte, []int) {
-	return file_pkg_proto_state_proto_rawDescGZIP(), []int{0}
+	return file_pkg_state_state_proto_rawDescGZIP(), []int{0}
 }
 
-var File_pkg_proto_state_proto protoreflect.FileDescriptor
+var File_pkg_state_state_proto protoreflect.FileDescriptor
 
-var file_pkg_proto_state_proto_rawDesc = []byte{
-	0x0a, 0x15, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x73, 0x74, 0x61, 0x74,
+var file_pkg_state_state_proto_rawDesc = []byte{
+	0x0a, 0x15, 0x70, 0x6b, 0x67, 0x2f, 0x73, 0x74, 0x61, 0x74, 0x65, 0x2f, 0x73, 0x74, 0x61, 0x74,
 	0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2a, 0x32, 0x0a, 0x05, 0x53, 0x74, 0x61, 0x74, 0x65,
 	0x12, 0x0b, 0x0a, 0x07, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x0f, 0x0a,
 	0x0b, 0x44, 0x4f, 0x57, 0x4e, 0x4c, 0x4f, 0x41, 0x44, 0x49, 0x4e, 0x47, 0x10, 0x01, 0x12, 0x0b,
-	0x0a, 0x07, 0x53, 0x45, 0x45, 0x44, 0x49, 0x4e, 0x47, 0x10, 0x02, 0x42, 0x09, 0x5a, 0x07, 0x2e,
-	0x3b, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x0a, 0x07, 0x53, 0x45, 0x45, 0x44, 0x49, 0x4e, 0x47, 0x10, 0x02, 0x42, 0x22, 0x5a, 0x20, 0x67,
+	0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x64, 0x61, 0x77, 0x69, 0x64, 0x64,
+	0x36, 0x2f, 0x70, 0x32, 0x70, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x73, 0x74, 0x61, 0x74, 0x65, 0x62,
+	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
-	file_pkg_proto_state_proto_rawDescOnce sync.Once
-	file_pkg_proto_state_proto_rawDescData = file_pkg_proto_state_proto_rawDesc
+	file_pkg_state_state_proto_rawDescOnce sync.Once
+	file_pkg_state_state_proto_rawDescData = file_pkg_state_state_proto_rawDesc
 )
 
-func file_pkg_proto_state_proto_rawDescGZIP() []byte {
-	file_pkg_proto_state_proto_rawDescOnce.Do(func() {
-		file_pkg_proto_state_proto_rawDescData = protoimpl.X.CompressGZIP(file_pkg_proto_state_proto_rawDescData)
+func file_pkg_state_state_proto_rawDescGZIP() []byte {
+	file_pkg_state_state_proto_rawDescOnce.Do(func() {
+		file_pkg_state_state_proto_rawDescData = protoimpl.X.CompressGZIP(file_pkg_state_state_proto_rawDescData)
 	})
-	return file_pkg_proto_state_proto_rawDescData
+	return file_pkg_state_state_proto_rawDescData
 }
 
-var file_pkg_proto_state_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_pkg_proto_state_proto_goTypes = []interface{}{
+var file_pkg_state_state_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_pkg_state_state_proto_goTypes = []interface{}{
 	(State)(0), // 0: State
 }
-var file_pkg_proto_state_proto_depIdxs = []int32{
+var file_pkg_state_state_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -104,27 +106,27 @@ var file_pkg_proto_state_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_pkg_proto_state_proto_init() }
-func file_pkg_proto_state_proto_init() {
-	if File_pkg_proto_state_proto != nil {
+func init() { file_pkg_state_state_proto_init() }
+func file_pkg_state_state_proto_init() {
+	if File_pkg_state_state_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: file_pkg_proto_state_proto_rawDesc,
+			RawDescriptor: file_pkg_state_state_proto_rawDesc,
 			NumEnums:      1,
 			NumMessages:   0,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_pkg_proto_state_proto_goTypes,
-		DependencyIndexes: file_pkg_proto_state_proto_depIdxs,
-		EnumInfos:         file_pkg_proto_state_proto_enumTypes,
+		GoTypes:           file_pkg_state_state_proto_goTypes,
+		DependencyIndexes: file_pkg_state_state_proto_depIdxs,
+		EnumInfos:         file_pkg_state_state_proto_enumTypes,
 	}.Build()
-	File_pkg_proto_state_proto = out.File
-	file_pkg_proto_state_proto_rawDesc = nil
-	file_pkg_proto_state_proto_goTypes = nil
-	file_pkg_proto_state_proto_depIdxs = nil
+	File_pkg_state_state_proto = out.File
+	file_pkg_state_state_proto_rawDesc = nil
+	file_pkg_state_state_proto_goTypes = nil
+	file_pkg_state_state_proto_depIdxs = nil
 }

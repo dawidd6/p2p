@@ -5,15 +5,15 @@ import (
 	"log"
 	"sync"
 	"time"
-
-	"github.com/dawidd6/p2p/pkg/proto"
 )
+
+const DefaultListenAddr = "localhost:8889"
 
 type Tracker struct {
 	// torrent_sha256 peer_address peer_announce_timestamp
 	index map[string]map[string]uint64
 	mut   sync.Mutex
-	proto.UnimplementedTrackerServer
+	UnimplementedTrackerServer
 }
 
 func NewTracker() *Tracker {
@@ -50,7 +50,7 @@ func (tracker *Tracker) GoClean() {
 	}()
 }
 
-func (tracker *Tracker) Register(ctx context.Context, req *proto.RegisterRequest) (*proto.RegisterReply, error) {
+func (tracker *Tracker) Register(ctx context.Context, req *RegisterRequest) (*RegisterReply, error) {
 	log.Println("Announce", req.PeerAddress, req.TorrentSha256)
 
 	tracker.mut.Lock()
@@ -61,17 +61,17 @@ func (tracker *Tracker) Register(ctx context.Context, req *proto.RegisterRequest
 	peerAddresses := tracker.peerAddressesForTorrentSha256(req.TorrentSha256, req.PeerAddress)
 	tracker.mut.Unlock()
 
-	return &proto.RegisterReply{
+	return &RegisterReply{
 		PeerAddresses: peerAddresses,
 	}, nil
 }
 
-func (tracker *Tracker) List(ctx context.Context, req *proto.ListRequest) (*proto.ListReply, error) {
+func (tracker *Tracker) List(ctx context.Context, req *ListRequest) (*ListReply, error) {
 	tracker.mut.Lock()
 	peerAddresses := tracker.peerAddressesForTorrentSha256(req.TorrentSha256, req.PeerAddress)
 	tracker.mut.Unlock()
 
-	return &proto.ListReply{
+	return &ListReply{
 		PeerAddresses: peerAddresses,
 	}, nil
 }

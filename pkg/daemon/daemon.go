@@ -4,36 +4,39 @@ import (
 	"context"
 	"log"
 
-	"github.com/dawidd6/p2p/pkg/proto"
+	"github.com/dawidd6/p2p/pkg/torrent"
+	"github.com/dawidd6/p2p/pkg/tracker"
 
 	"google.golang.org/grpc"
 )
 
+const DefaultListenAddr = "localhost:8888"
+
 type Daemon struct {
-	torrents []*proto.Torrent
+	torrents []*torrent.Torrent
 	address  string
-	proto.UnimplementedDaemonServer
+	UnimplementedDaemonServer
 }
 
 func NewDaemon(address string) *Daemon {
 	return &Daemon{
-		torrents: make([]*proto.Torrent, 0),
+		torrents: make([]*torrent.Torrent, 0),
 		address:  address,
 	}
 }
 
-func (daemon *Daemon) Add(ctx context.Context, in *proto.AddRequest) (*proto.AddResponse, error) {
+func (daemon *Daemon) Add(ctx context.Context, in *AddRequest) (*AddResponse, error) {
 	for _, url := range in.Torrent.Trackers {
 		conn, err := grpc.Dial(url, grpc.WithInsecure())
 		if err != nil {
 			return nil, err
 		}
 
-		request := &proto.RegisterRequest{
+		request := &tracker.RegisterRequest{
 			TorrentSha256: in.Torrent.Sha256,
 			PeerAddress:   daemon.address,
 		}
-		client := proto.NewTrackerClient(conn)
+		client := tracker.NewTrackerClient(conn)
 		_, err = client.Register(context.TODO(), request)
 		if err != nil {
 			return nil, err
@@ -42,5 +45,5 @@ func (daemon *Daemon) Add(ctx context.Context, in *proto.AddRequest) (*proto.Add
 
 	log.Println("Add")
 
-	return &proto.AddResponse{Torrent: in.Torrent}, nil
+	return &AddResponse{Torrent: in.Torrent}, nil
 }
