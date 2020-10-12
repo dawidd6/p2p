@@ -3,6 +3,9 @@ VERSION ?= $(shell git describe --tags 2>/dev/null || git rev-parse HEAD)
 build:
 	go build -ldflags "-s -w -X main.version=$(VERSION)"
 
+test:
+	go test -v ./...
+
 proto-plugins:
 	go get google.golang.org/protobuf/cmd/protoc-gen-go@v1.25.0
 	go get google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.0.0
