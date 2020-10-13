@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"log"
+	"net"
 
 	"github.com/dawidd6/p2p/pkg/seed"
 
@@ -20,11 +21,22 @@ type Daemon struct {
 	UnimplementedDaemonServer
 }
 
-func NewDaemon(address string) *Daemon {
+func New(address string) *Daemon {
 	return &Daemon{
 		torrents: make([]*torrent.Torrent, 0),
 		address:  address,
 	}
+}
+
+func (daemon *Daemon) Listen() error {
+	listener, err := net.Listen("tcp", daemon.address)
+	if err != nil {
+		return err
+	}
+
+	server := grpc.NewServer()
+	RegisterDaemonServer(server, daemon)
+	return server.Serve(listener)
 }
 
 func (daemon *Daemon) Add(ctx context.Context, in *AddRequest) (*AddResponse, error) {

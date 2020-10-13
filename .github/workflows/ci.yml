@@ -25,10 +25,10 @@ jobs:
         uses: actions/checkout@v2
       - name: Setup Go
         uses: actions/setup-go@v2
-      - name: Setup protoc
-        uses: arduino/setup-protoc@v1
+      - name: Install protobuf
+        run: brew install protobuf protoc-gen-go protoc-gen-go-grpc
       - name: Generate proto
-        run: make proto-plugins proto
+        run: make proto
       - name: Check changes
         run: git diff --exit-code
   ci-docker:

@@ -2,6 +2,8 @@ package seed
 
 import "context"
 
+const DefaultListenAddr = "0.0.0.0:44444"
+
 type Seed struct {
 	UnimplementedSeedServer
 }

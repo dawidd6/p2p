@@ -3,23 +3,39 @@ package tracker
 import (
 	"context"
 	"log"
+	"net"
 	"sync"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 const DefaultListenAddr = "localhost:8889"
 
 type Tracker struct {
 	// torrent_sha256 peer_address peer_announce_timestamp
-	index map[string]map[string]uint64
-	mut   sync.Mutex
+	index   map[string]map[string]uint64
+	mut     sync.Mutex
+	address string
 	UnimplementedTrackerServer
 }
 
-func NewTracker() *Tracker {
+func New(address string) *Tracker {
 	return &Tracker{
-		index: make(map[string]map[string]uint64),
+		index:   make(map[string]map[string]uint64),
+		address: address,
 	}
+}
+
+func (tracker *Tracker) Listen() error {
+	listener, err := net.Listen("tcp", tracker.address)
+	if err != nil {
+		return err
+	}
+
+	server := grpc.NewServer()
+	RegisterTrackerServer(server, tracker)
+	return server.Serve(listener)
 }
 
 func (tracker *Tracker) GoClean() {
