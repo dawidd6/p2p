@@ -23,8 +23,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Setup Go
-        uses: actions/setup-go@v2
       - name: Install protobuf
         run: brew install protobuf protoc-gen-go protoc-gen-go-grpc
       - name: Generate proto
