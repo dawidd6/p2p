@@ -51,7 +51,16 @@ var (
 		Use:   "daemon",
 		Short: "Run daemon.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return daemon.New(*daemonAddr).Listen()
+			ch := make(chan error)
+
+			go func() {
+				ch <- daemon.New(*daemonAddr).Listen()
+			}()
+			go func() {
+				ch <- seed.New(*seedAddr).Listen()
+			}()
+
+			return <-ch
 		},
 		Args: cobra.ExactArgs(0),
 	}
