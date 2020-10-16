@@ -14,10 +14,10 @@ func Sha256Sum(b []byte) string {
 }
 
 // ReadFilePiece reads only a specified portion of file.
-func ReadFilePiece(filePath string, size, number int) ([]byte, error) {
+func ReadFilePiece(filePath string, size, number int64) ([]byte, error) {
 	b := make([]byte, size)
 
-	file, err := os.OpenFile(filePath, os.O_RDONLY, os.ModePerm)
+	file, err := os.OpenFile(filePath, os.O_RDONLY, 0664)
 	if err != nil {
 		return nil, err
 	}
@@ -28,6 +28,38 @@ func ReadFilePiece(filePath string, size, number int) ([]byte, error) {
 	}
 
 	return b[:n], file.Close()
+}
+
+// WriteFilePiece writes only a specified portion of file.
+func WriteFilePiece(filePath string, number int64, piece []byte) error {
+	size := int64(len(piece))
+
+	file, err := os.OpenFile(filePath, os.O_WRONLY, 0664)
+	if err != nil {
+		return err
+	}
+
+	_, err = file.WriteAt(piece, size*number)
+	if err != nil {
+		return err
+	}
+
+	return file.Close()
+}
+
+// AllocateZeroedFile creates a new file filled with zeroes.
+func AllocateZeroedFile(filePath string, size int64) error {
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+
+	err = file.Truncate(size)
+	if err != nil {
+		return err
+	}
+
+	return file.Close()
 }
 
 // DoInDirectory changes current working directory to `dir`,

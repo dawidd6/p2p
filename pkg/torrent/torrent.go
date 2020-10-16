@@ -146,7 +146,7 @@ func VerifyFiles(torrent *Torrent, dir string) error {
 			}
 
 			for i, p := range f.Pieces {
-				chunk, err := utils.ReadFilePiece(f.Name, piece.PieceLength, i)
+				chunk, err := utils.ReadFilePiece(f.Name, piece.PieceLength, int64(i))
 				if err != nil {
 					return err
 				}
