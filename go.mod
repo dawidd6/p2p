@@ -3,7 +3,7 @@ module github.com/dawidd6/p2p
 go 1.14
 
 require (
-	github.com/golang/protobuf v1.4.2
+	github.com/golang/protobuf v1.4.3
 	github.com/spf13/cobra v1.1.0
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/net v0.0.0-20201010224723-4f7140c49acb // indirect
