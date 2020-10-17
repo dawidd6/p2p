@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"os"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -110,6 +111,11 @@ func (daemon *Daemon) fetch(t *torrent.Torrent) error {
 		return err
 	}
 
+	err = os.MkdirAll(daemon.config.DownloadsDir, os.ModeDir)
+	if err != nil {
+		return err
+	}
+
 	err = utils.AllocateZeroedFile(daemon.filePath(t), t.FileSize)
 	if err != nil {
 		return err
@@ -128,12 +134,12 @@ func (daemon *Daemon) fetch(t *torrent.Torrent) error {
 			// TODO use DialContext everywhere
 			conn, err := grpc.DialContext(context.TODO(), peerAddr, grpc.WithInsecure())
 			if err != nil {
-				return err
+				continue
 			}
 
 			response, err := NewSeederClient(conn).Seed(context.TODO(), request)
 			if err != nil {
-				return err
+				continue
 			}
 
 			// Peer does not have this piece, ask someone else
@@ -148,7 +154,7 @@ func (daemon *Daemon) fetch(t *torrent.Torrent) error {
 
 			err = utils.WriteFilePiece(daemon.filePath(t), uint64(i), response.PieceData)
 			if err != nil {
-				return err
+				continue
 			}
 		}
 	}
