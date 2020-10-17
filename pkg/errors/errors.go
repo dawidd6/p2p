@@ -9,4 +9,5 @@ var (
 	PieceChecksumMismatchError   = errors.New("saved checksum of piece in torrent file does not match actual checksum of the piece")
 	TorrentChecksumMismatchError = errors.New("saved checksum of torrent does not match actual checksum of the torrent")
 	TorrentNotFound              = errors.New("torrent not found")
+	TorrentAlreadyAdded          = errors.New("torrent is already added")
 )

@@ -8,5 +8,5 @@ message Torrent {
     uint64 file_size = 3;
     uint64 piece_size = 4;
     repeated string piece_hashes = 5;
-    repeated string tracker_urls = 6;
+    repeated string tracker_addresses = 6;
 }

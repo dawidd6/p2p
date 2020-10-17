@@ -2,18 +2,17 @@ package daemon
 
 import (
 	"context"
+	"log"
 	"net"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/dawidd6/p2p/pkg/errors"
-
-	"github.com/dawidd6/p2p/pkg/utils"
-
 	"github.com/dawidd6/p2p/pkg/torrent"
-
 	"github.com/dawidd6/p2p/pkg/tracker"
+	"github.com/dawidd6/p2p/pkg/utils"
 
 	"google.golang.org/grpc"
 )
@@ -25,22 +24,19 @@ type Config struct {
 }
 
 type Daemon struct {
-	// file_sha256 piece_number torrent
-	torrents map[string]
-	config   *Config
+	torrents []*torrent.Torrent
 	mut      sync.Mutex
+	config   *Config
 	UnimplementedDaemonServer
-	UnimplementedSeedServer
+	UnimplementedSeederServer
 }
 
-func New(config *Config) *Daemon {
-	return &Daemon{
-		torrents: make(map[string]map[uint64]*torrent.Torrent),
+func Run(config *Config) error {
+	daemon := &Daemon{
+		torrents: make([]*torrent.Torrent, 0),
 		config:   config,
 	}
-}
 
-func (daemon *Daemon) Listen() error {
 	ch := make(chan error)
 
 	go func() {
@@ -63,7 +59,7 @@ func (daemon *Daemon) Listen() error {
 		}
 
 		server := grpc.NewServer()
-		RegisterSeedServer(server, daemon)
+		RegisterSeederServer(server, daemon)
 		ch <- server.Serve(listener)
 	}()
 
@@ -73,7 +69,7 @@ func (daemon *Daemon) Listen() error {
 func (daemon *Daemon) getPeerAddresses(t *torrent.Torrent) ([]string, error) {
 	peers := make([]string, 0)
 
-	for _, url := range t.TrackerUrls {
+	for _, url := range t.TrackerAddresses {
 		conn, err := grpc.Dial(url, grpc.WithInsecure())
 		if err != nil {
 			return nil, err
@@ -114,11 +110,16 @@ func (daemon *Daemon) fetch(t *torrent.Torrent) error {
 		return err
 	}
 
+	err = utils.AllocateZeroedFile(daemon.filePath(t), t.FileSize)
+	if err != nil {
+		return err
+	}
+
 	for i, pieceHash := range t.PieceHashes {
 		// TODO, throttle for now
 		<-time.After(time.Second)
 
-		request := &FetchRequest{
+		request := &SeedRequest{
 			FileHash:    t.FileHash,
 			PieceNumber: uint64(i),
 		}
@@ -130,7 +131,7 @@ func (daemon *Daemon) fetch(t *torrent.Torrent) error {
 				return err
 			}
 
-			response, err := NewSeedClient(conn).Fetch(context.TODO(), request)
+			response, err := NewSeederClient(conn).Seed(context.TODO(), request)
 			if err != nil {
 				return err
 			}
@@ -145,7 +146,7 @@ func (daemon *Daemon) fetch(t *torrent.Torrent) error {
 				continue
 			}
 
-			err = utils.WriteFilePiece(filepath.Join(daemon.config.DownloadsDir, t.FileName), uint64(i), response.PieceData)
+			err = utils.WriteFilePiece(daemon.filePath(t), uint64(i), response.PieceData)
 			if err != nil {
 				return err
 			}
@@ -155,34 +156,54 @@ func (daemon *Daemon) fetch(t *torrent.Torrent) error {
 	return nil
 }
 
-func (daemon *Daemon) add(t *torrent.Torrent) {
-
-}
-
 func (daemon *Daemon) filePath(t *torrent.Torrent) string {
 	return filepath.Join(daemon.config.DownloadsDir, t.FileName)
 }
 
-func (daemon *Daemon) Fetch(ctx context.Context, req *FetchRequest) (*FetchResponse, error) {
+func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse, error) {
 	daemon.mut.Lock()
-	t, ok := daemon.torrents[req.FileHash]
-	daemon.mut.Unlock()
-	if !ok {
+	n := sort.Search(len(daemon.torrents), func(i int) bool {
+		if daemon.torrents[i].FileHash == req.FileHash {
+			return true
+		}
+		return false
+	})
+	if n < len(daemon.torrents) {
+	} else {
 		return nil, errors.TorrentNotFound
 	}
+	t := daemon.torrents[n]
+	daemon.mut.Unlock()
 
 	piece, err := utils.ReadFilePiece(daemon.filePath(t), t.PieceSize, req.PieceNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	return &FetchResponse{PieceData: piece}, nil
+	return &SeedResponse{PieceData: piece}, nil
 }
 
 func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, error) {
-	if utils.FileExists(daemon.filePath(req.Torrent)) {
-
+	daemon.mut.Lock()
+	n := sort.Search(len(daemon.torrents), func(i int) bool {
+		if daemon.torrents[i].FileHash == req.Torrent.FileHash {
+			return true
+		}
+		return false
+	})
+	if n < len(daemon.torrents) {
+		return nil, errors.TorrentAlreadyAdded
+	} else {
+		daemon.torrents = append(daemon.torrents, req.Torrent)
 	}
+	daemon.mut.Unlock()
+
+	go func() {
+		err := daemon.fetch(req.Torrent)
+		if err != nil {
+			log.Println("Fetch", err)
+		}
+	}()
 
 	return &AddResponse{Torrent: req.Torrent}, nil
 }

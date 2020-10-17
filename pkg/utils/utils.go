@@ -1,9 +1,11 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"io/ioutil"
 	"os"
 )
 
@@ -23,6 +25,57 @@ func FileExists(filePath string) bool {
 	}
 
 	return true
+}
+
+func ReadFilePieces(filePath string, pieceSize uint64) ([][]byte, error) {
+	fileContent, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	reader := bytes.NewReader(fileContent)
+	pieces := make([][]byte, 0)
+
+	for {
+		piece := make([]byte, pieceSize)
+
+		n, err := reader.Read(piece)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		pieces = append(pieces, piece[:n])
+	}
+
+	return pieces, nil
+}
+
+func ReadFilePieceHashes(filePath string, pieceSize uint64) ([]string, error) {
+	pieces, err := ReadFilePieces(filePath, pieceSize)
+	if err != nil {
+		return nil, err
+	}
+
+	pieceHashes := make([]string, 0)
+
+	for i := range pieces {
+		pieceHash := Sha256Sum(pieces[i])
+		pieceHashes = append(pieceHashes, pieceHash)
+	}
+
+	return pieceHashes, nil
+}
+
+func GetFileSize(filePath string) (uint64, error) {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(info.Size()), nil
 }
 
 // ReadFilePiece reads only a specified portion of file.

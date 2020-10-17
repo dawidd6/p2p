@@ -13,7 +13,7 @@ import (
 	"github.com/dawidd6/p2p/pkg/utils"
 )
 
-const FileExtension = ".torrent.json"
+const FileExtension = "torrent.json"
 
 func Create(filePath string, pieceSize uint64) (*Torrent, error) {
 	fileContent, err := ioutil.ReadFile(filePath)
@@ -40,13 +40,12 @@ func Create(filePath string, pieceSize uint64) (*Torrent, error) {
 	}
 
 	t := &Torrent{
-
-		FileName:    filepath.Base(filePath),
-		FileHash:    utils.Sha256Sum(fileContent),
-		FileSize:    uint64(len(fileContent)),
-		PieceSize:   pieceSize,
-		PieceHashes: pieceHashes,
-		TrackerUrls: []string{"localhost:8889"}, // TODO customizable trackers urls
+		FileName:         filepath.Base(filePath),
+		FileHash:         utils.Sha256Sum(fileContent),
+		FileSize:         uint64(len(fileContent)),
+		PieceSize:        pieceSize,
+		PieceHashes:      pieceHashes,
+		TrackerAddresses: []string{"localhost:8889"}, // TODO customizable trackers urls
 	}
 
 	return t, nil
@@ -73,7 +72,7 @@ func Load(filePath string) (*Torrent, error) {
 }
 
 func Save(torrent *Torrent) error {
-	filename := fmt.Sprintf("%s%s", torrent.FileName, FileExtension)
+	filename := fmt.Sprintf("%s.%s", torrent.FileName, FileExtension)
 
 	message, err := json.MarshalIndent(torrent, "", "  ")
 	if err != nil {
@@ -81,10 +80,6 @@ func Save(torrent *Torrent) error {
 	}
 
 	return ioutil.WriteFile(filename, message, 0644)
-}
-
-func MissingPieces() {
-
 }
 
 func Verify(torrent *Torrent, dir string) error {

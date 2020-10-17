@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/dawidd6/p2p/pkg/defaults"
 
@@ -44,9 +45,11 @@ var (
 		Short: "Run tracker.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config := &tracker.Config{
-				Address: *trackerAddr,
+				Address:          *trackerAddr,
+				AnnounceInterval: time.Second * 30, // TODO defaults
+				CleanInterval:    time.Second * 60, // TODO defaults
 			}
-			return tracker.New(config).Listen()
+			return tracker.Run(config)
 		},
 		Args: cobra.ExactArgs(0),
 	}
@@ -59,7 +62,7 @@ var (
 				Address:      *daemonAddr,
 				SeedAddress:  *seedAddr,
 			}
-			return daemon.New(config).Listen()
+			return daemon.Run(config)
 		},
 		Args: cobra.ExactArgs(0),
 	}

@@ -8,16 +8,16 @@ service Daemon {
     rpc Add (AddRequest) returns (AddResponse);
 }
 
-service Seed {
-    rpc Fetch (FetchRequest) returns (FetchResponse);
+service Seeder {
+    rpc Seed (SeedRequest) returns (SeedResponse);
 }
 
-message FetchRequest {
+message SeedRequest {
     string file_hash = 1;
     uint64 piece_number = 2;
 }
 
-message FetchResponse {
+message SeedResponse {
     bytes piece_data = 2;
 }
 
