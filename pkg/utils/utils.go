@@ -13,16 +13,28 @@ func Sha256Sum(b []byte) string {
 	return hex.EncodeToString(checksum[:])
 }
 
+func FileExists(filePath string) bool {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return false
+	}
+	if info == nil {
+		return false
+	}
+
+	return true
+}
+
 // ReadFilePiece reads only a specified portion of file.
-func ReadFilePiece(filePath string, size, number int64) ([]byte, error) {
-	b := make([]byte, size)
+func ReadFilePiece(filePath string, pieceSize, pieceNumber uint64) ([]byte, error) {
+	b := make([]byte, pieceSize)
 
 	file, err := os.OpenFile(filePath, os.O_RDONLY, 0664)
 	if err != nil {
 		return nil, err
 	}
 
-	n, err := file.ReadAt(b, int64(size*number))
+	n, err := file.ReadAt(b, int64(pieceSize*pieceNumber))
 	if err != nil && err != io.EOF {
 		return nil, err
 	}
@@ -31,15 +43,15 @@ func ReadFilePiece(filePath string, size, number int64) ([]byte, error) {
 }
 
 // WriteFilePiece writes only a specified portion of file.
-func WriteFilePiece(filePath string, number int64, piece []byte) error {
-	size := int64(len(piece))
+func WriteFilePiece(filePath string, pieceNumber uint64, piece []byte) error {
+	size := uint64(len(piece))
 
 	file, err := os.OpenFile(filePath, os.O_WRONLY, 0664)
 	if err != nil {
 		return err
 	}
 
-	_, err = file.WriteAt(piece, size*number)
+	_, err = file.WriteAt(piece, int64(size*pieceNumber))
 	if err != nil {
 		return err
 	}
@@ -48,13 +60,13 @@ func WriteFilePiece(filePath string, number int64, piece []byte) error {
 }
 
 // AllocateZeroedFile creates a new file filled with zeroes.
-func AllocateZeroedFile(filePath string, size int64) error {
+func AllocateZeroedFile(filePath string, fileSize uint64) error {
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
 
-	err = file.Truncate(size)
+	err = file.Truncate(int64(fileSize))
 	if err != nil {
 		return err
 	}

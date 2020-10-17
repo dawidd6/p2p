@@ -25,17 +25,17 @@ const (
 // of the legacy proto package is being used.
 const _ = proto.ProtoPackageIsVersion4
 
-type RegisterRequest struct {
+type AnnounceRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	TorrentSha256 string `protobuf:"bytes,1,opt,name=torrent_sha256,json=torrentSha256,proto3" json:"torrent_sha256,omitempty"`
-	PeerAddress   string `protobuf:"bytes,2,opt,name=peer_address,json=peerAddress,proto3" json:"peer_address,omitempty"`
+	FileHash    string `protobuf:"bytes,1,opt,name=file_hash,json=fileHash,proto3" json:"file_hash,omitempty"`
+	PeerAddress string `protobuf:"bytes,2,opt,name=peer_address,json=peerAddress,proto3" json:"peer_address,omitempty"`
 }
 
-func (x *RegisterRequest) Reset() {
-	*x = RegisterRequest{}
+func (x *AnnounceRequest) Reset() {
+	*x = AnnounceRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_pkg_tracker_tracker_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -43,13 +43,13 @@ func (x *RegisterRequest) Reset() {
 	}
 }
 
-func (x *RegisterRequest) String() string {
+func (x *AnnounceRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RegisterRequest) ProtoMessage() {}
+func (*AnnounceRequest) ProtoMessage() {}
 
-func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
+func (x *AnnounceRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_tracker_tracker_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -61,26 +61,26 @@ func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RegisterRequest.ProtoReflect.Descriptor instead.
-func (*RegisterRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use AnnounceRequest.ProtoReflect.Descriptor instead.
+func (*AnnounceRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_tracker_tracker_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *RegisterRequest) GetTorrentSha256() string {
+func (x *AnnounceRequest) GetFileHash() string {
 	if x != nil {
-		return x.TorrentSha256
+		return x.FileHash
 	}
 	return ""
 }
 
-func (x *RegisterRequest) GetPeerAddress() string {
+func (x *AnnounceRequest) GetPeerAddress() string {
 	if x != nil {
 		return x.PeerAddress
 	}
 	return ""
 }
 
-type RegisterReply struct {
+type AnnounceResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -88,8 +88,8 @@ type RegisterReply struct {
 	PeerAddresses []string `protobuf:"bytes,1,rep,name=peer_addresses,json=peerAddresses,proto3" json:"peer_addresses,omitempty"`
 }
 
-func (x *RegisterReply) Reset() {
-	*x = RegisterReply{}
+func (x *AnnounceResponse) Reset() {
+	*x = AnnounceResponse{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_pkg_tracker_tracker_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -97,13 +97,13 @@ func (x *RegisterReply) Reset() {
 	}
 }
 
-func (x *RegisterReply) String() string {
+func (x *AnnounceResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RegisterReply) ProtoMessage() {}
+func (*AnnounceResponse) ProtoMessage() {}
 
-func (x *RegisterReply) ProtoReflect() protoreflect.Message {
+func (x *AnnounceResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_tracker_tracker_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -115,114 +115,12 @@ func (x *RegisterReply) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RegisterReply.ProtoReflect.Descriptor instead.
-func (*RegisterReply) Descriptor() ([]byte, []int) {
+// Deprecated: Use AnnounceResponse.ProtoReflect.Descriptor instead.
+func (*AnnounceResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_tracker_tracker_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *RegisterReply) GetPeerAddresses() []string {
-	if x != nil {
-		return x.PeerAddresses
-	}
-	return nil
-}
-
-type ListRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	TorrentSha256 string `protobuf:"bytes,1,opt,name=torrent_sha256,json=torrentSha256,proto3" json:"torrent_sha256,omitempty"`
-	PeerAddress   string `protobuf:"bytes,2,opt,name=peer_address,json=peerAddress,proto3" json:"peer_address,omitempty"`
-}
-
-func (x *ListRequest) Reset() {
-	*x = ListRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_pkg_tracker_tracker_proto_msgTypes[2]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ListRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListRequest) ProtoMessage() {}
-
-func (x *ListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_tracker_tracker_proto_msgTypes[2]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListRequest.ProtoReflect.Descriptor instead.
-func (*ListRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_tracker_tracker_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *ListRequest) GetTorrentSha256() string {
-	if x != nil {
-		return x.TorrentSha256
-	}
-	return ""
-}
-
-func (x *ListRequest) GetPeerAddress() string {
-	if x != nil {
-		return x.PeerAddress
-	}
-	return ""
-}
-
-type ListReply struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	PeerAddresses []string `protobuf:"bytes,1,rep,name=peer_addresses,json=peerAddresses,proto3" json:"peer_addresses,omitempty"`
-}
-
-func (x *ListReply) Reset() {
-	*x = ListReply{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_pkg_tracker_tracker_proto_msgTypes[3]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ListReply) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListReply) ProtoMessage() {}
-
-func (x *ListReply) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_tracker_tracker_proto_msgTypes[3]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListReply.ProtoReflect.Descriptor instead.
-func (*ListReply) Descriptor() ([]byte, []int) {
-	return file_pkg_tracker_tracker_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *ListReply) GetPeerAddresses() []string {
+func (x *AnnounceResponse) GetPeerAddresses() []string {
 	if x != nil {
 		return x.PeerAddresses
 	}
@@ -233,34 +131,23 @@ var File_pkg_tracker_tracker_proto protoreflect.FileDescriptor
 
 var file_pkg_tracker_tracker_proto_rawDesc = []byte{
 	0x0a, 0x19, 0x70, 0x6b, 0x67, 0x2f, 0x74, 0x72, 0x61, 0x63, 0x6b, 0x65, 0x72, 0x2f, 0x74, 0x72,
-	0x61, 0x63, 0x6b, 0x65, 0x72, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x5b, 0x0a, 0x0f, 0x52,
-	0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x25,
-	0x0a, 0x0e, 0x74, 0x6f, 0x72, 0x72, 0x65, 0x6e, 0x74, 0x5f, 0x73, 0x68, 0x61, 0x32, 0x35, 0x36,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x74, 0x6f, 0x72, 0x72, 0x65, 0x6e, 0x74, 0x53,
-	0x68, 0x61, 0x32, 0x35, 0x36, 0x12, 0x21, 0x0a, 0x0c, 0x70, 0x65, 0x65, 0x72, 0x5f, 0x61, 0x64,
-	0x64, 0x72, 0x65, 0x73, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x70, 0x65, 0x65,
-	0x72, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x22, 0x36, 0x0a, 0x0d, 0x52, 0x65, 0x67, 0x69,
-	0x73, 0x74, 0x65, 0x72, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x25, 0x0a, 0x0e, 0x70, 0x65, 0x65,
-	0x72, 0x5f, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28,
-	0x09, 0x52, 0x0d, 0x70, 0x65, 0x65, 0x72, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x65, 0x73,
-	0x22, 0x57, 0x0a, 0x0b, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
-	0x25, 0x0a, 0x0e, 0x74, 0x6f, 0x72, 0x72, 0x65, 0x6e, 0x74, 0x5f, 0x73, 0x68, 0x61, 0x32, 0x35,
-	0x36, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x74, 0x6f, 0x72, 0x72, 0x65, 0x6e, 0x74,
-	0x53, 0x68, 0x61, 0x32, 0x35, 0x36, 0x12, 0x21, 0x0a, 0x0c, 0x70, 0x65, 0x65, 0x72, 0x5f, 0x61,
-	0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x70, 0x65,
-	0x65, 0x72, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x22, 0x32, 0x0a, 0x09, 0x4c, 0x69, 0x73,
-	0x74, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x25, 0x0a, 0x0e, 0x70, 0x65, 0x65, 0x72, 0x5f, 0x61,
-	0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x0d,
-	0x70, 0x65, 0x65, 0x72, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x65, 0x73, 0x32, 0x59, 0x0a,
-	0x07, 0x54, 0x72, 0x61, 0x63, 0x6b, 0x65, 0x72, 0x12, 0x2c, 0x0a, 0x08, 0x52, 0x65, 0x67, 0x69,
-	0x73, 0x74, 0x65, 0x72, 0x12, 0x10, 0x2e, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x0e, 0x2e, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65,
-	0x72, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x20, 0x0a, 0x04, 0x4c, 0x69, 0x73, 0x74, 0x12, 0x0c,
-	0x2e, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x0a, 0x2e, 0x4c,
-	0x69, 0x73, 0x74, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x42, 0x24, 0x5a, 0x22, 0x67, 0x69, 0x74, 0x68,
-	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x64, 0x61, 0x77, 0x69, 0x64, 0x64, 0x36, 0x2f, 0x70,
-	0x32, 0x70, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x74, 0x72, 0x61, 0x63, 0x6b, 0x65, 0x72, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x61, 0x63, 0x6b, 0x65, 0x72, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x51, 0x0a, 0x0f, 0x41,
+	0x6e, 0x6e, 0x6f, 0x75, 0x6e, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1b,
+	0x0a, 0x09, 0x66, 0x69, 0x6c, 0x65, 0x5f, 0x68, 0x61, 0x73, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x08, 0x66, 0x69, 0x6c, 0x65, 0x48, 0x61, 0x73, 0x68, 0x12, 0x21, 0x0a, 0x0c, 0x70,
+	0x65, 0x65, 0x72, 0x5f, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x0b, 0x70, 0x65, 0x65, 0x72, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x22, 0x39,
+	0x0a, 0x10, 0x41, 0x6e, 0x6e, 0x6f, 0x75, 0x6e, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x25, 0x0a, 0x0e, 0x70, 0x65, 0x65, 0x72, 0x5f, 0x61, 0x64, 0x64, 0x72, 0x65,
+	0x73, 0x73, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x0d, 0x70, 0x65, 0x65, 0x72,
+	0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x65, 0x73, 0x32, 0x3a, 0x0a, 0x07, 0x54, 0x72, 0x61,
+	0x63, 0x6b, 0x65, 0x72, 0x12, 0x2f, 0x0a, 0x08, 0x41, 0x6e, 0x6e, 0x6f, 0x75, 0x6e, 0x63, 0x65,
+	0x12, 0x10, 0x2e, 0x41, 0x6e, 0x6e, 0x6f, 0x75, 0x6e, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x11, 0x2e, 0x41, 0x6e, 0x6e, 0x6f, 0x75, 0x6e, 0x63, 0x65, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x24, 0x5a, 0x22, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e,
+	0x63, 0x6f, 0x6d, 0x2f, 0x64, 0x61, 0x77, 0x69, 0x64, 0x64, 0x36, 0x2f, 0x70, 0x32, 0x70, 0x2f,
+	0x70, 0x6b, 0x67, 0x2f, 0x74, 0x72, 0x61, 0x63, 0x6b, 0x65, 0x72, 0x62, 0x06, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x33,
 }
 
 var (
@@ -275,20 +162,16 @@ func file_pkg_tracker_tracker_proto_rawDescGZIP() []byte {
 	return file_pkg_tracker_tracker_proto_rawDescData
 }
 
-var file_pkg_tracker_tracker_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_pkg_tracker_tracker_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_pkg_tracker_tracker_proto_goTypes = []interface{}{
-	(*RegisterRequest)(nil), // 0: RegisterRequest
-	(*RegisterReply)(nil),   // 1: RegisterReply
-	(*ListRequest)(nil),     // 2: ListRequest
-	(*ListReply)(nil),       // 3: ListReply
+	(*AnnounceRequest)(nil),  // 0: AnnounceRequest
+	(*AnnounceResponse)(nil), // 1: AnnounceResponse
 }
 var file_pkg_tracker_tracker_proto_depIdxs = []int32{
-	0, // 0: Tracker.Register:input_type -> RegisterRequest
-	2, // 1: Tracker.List:input_type -> ListRequest
-	1, // 2: Tracker.Register:output_type -> RegisterReply
-	3, // 3: Tracker.List:output_type -> ListReply
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	0, // 0: Tracker.Announce:input_type -> AnnounceRequest
+	1, // 1: Tracker.Announce:output_type -> AnnounceResponse
+	1, // [1:2] is the sub-list for method output_type
+	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -301,7 +184,7 @@ func file_pkg_tracker_tracker_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_pkg_tracker_tracker_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RegisterRequest); i {
+			switch v := v.(*AnnounceRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -313,31 +196,7 @@ func file_pkg_tracker_tracker_proto_init() {
 			}
 		}
 		file_pkg_tracker_tracker_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RegisterReply); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_pkg_tracker_tracker_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_pkg_tracker_tracker_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListReply); i {
+			switch v := v.(*AnnounceResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -355,7 +214,7 @@ func file_pkg_tracker_tracker_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_pkg_tracker_tracker_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

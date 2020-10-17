@@ -3,24 +3,14 @@ syntax = "proto3";
 option go_package = "github.com/dawidd6/p2p/pkg/tracker";
 
 service Tracker {
-    rpc Register (RegisterRequest) returns (RegisterReply);
-    rpc List (ListRequest) returns (ListReply);
+    rpc Announce (AnnounceRequest) returns (AnnounceResponse);
 }
 
-message RegisterRequest {
-    string torrent_sha256 = 1;
+message AnnounceRequest {
+    string file_hash = 1;
     string peer_address = 2;
 }
 
-message RegisterReply {
-    repeated string peer_addresses = 1;
-}
-
-message ListRequest {
-    string torrent_sha256 = 1;
-    string peer_address = 2;
-}
-
-message ListReply {
+message AnnounceResponse {
     repeated string peer_addresses = 1;
 }

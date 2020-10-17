@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/dawidd6/p2p/pkg/seed"
+	"github.com/dawidd6/p2p/pkg/defaults"
 
 	"github.com/dawidd6/p2p/pkg/daemon"
 	"github.com/dawidd6/p2p/pkg/torrent"
@@ -43,7 +43,10 @@ var (
 		Use:   "tracker",
 		Short: "Run tracker.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return tracker.New(*trackerAddr).Listen()
+			config := &tracker.Config{
+				Address: *trackerAddr,
+			}
+			return tracker.New(config).Listen()
 		},
 		Args: cobra.ExactArgs(0),
 	}
@@ -51,47 +54,38 @@ var (
 		Use:   "daemon",
 		Short: "Run daemon.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ch := make(chan error)
-
-			go func() {
-				ch <- daemon.New(*daemonAddr).Listen()
-			}()
-			go func() {
-				ch <- seed.New(*seedAddr).Listen()
-			}()
-
-			return <-ch
+			config := &daemon.Config{
+				DownloadsDir: *downloadsDir,
+				Address:      *daemonAddr,
+				SeedAddress:  *seedAddr,
+			}
+			return daemon.New(config).Listen()
 		},
 		Args: cobra.ExactArgs(0),
 	}
 
-	torrentName *string
-	torrentDir  *string
-	daemonAddr  *string
-	seedAddr    *string
-	trackerAddr *string
+	trackerAddr  *string
+	daemonAddr   *string
+	seedAddr     *string
+	pieceSize    *uint64
+	downloadsDir *string
 )
 
 func runCreate(cmd *cobra.Command, args []string) error {
-	filePaths := args
+	filePath := args[0]
 
-	torr, err := torrent.CreateTorrentFromFiles(*torrentName, filePaths)
+	t, err := torrent.Create(filePath, *pieceSize)
 	if err != nil {
 		return err
 	}
 
-	return torrent.SaveTorrentToFile(torr)
+	return torrent.Save(t)
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
 	filePath := args[0]
 
-	torr, err := torrent.LoadTorrentFromFile(filePath)
-	if err != nil {
-		return err
-	}
-
-	err = torrent.VerifyFiles(torr, *torrentDir)
+	t, err := torrent.Load(filePath)
 	if err != nil {
 		return err
 	}
@@ -101,9 +95,8 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	request := &daemon.AddRequest{Torrent: torr}
-	client := daemon.NewDaemonClient(conn)
-	_, err = client.Add(context.TODO(), request)
+	request := &daemon.AddRequest{Torrent: t}
+	_, err = daemon.NewDaemonClient(conn).Add(context.TODO(), request)
 	if err != nil {
 		return err
 	}
@@ -114,11 +107,11 @@ func runAdd(cmd *cobra.Command, args []string) error {
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-	trackerAddr = cmdTracker.Flags().StringP("address", "a", tracker.DefaultListenAddr, "Tracker listening address.")
-	daemonAddr = cmdDaemon.Flags().StringP("address", "a", daemon.DefaultListenAddr, "Daemon listening address.")
-	seedAddr = cmdDaemon.Flags().StringP("seed-address", "s", seed.DefaultListenAddr, "Seed listening address.")
-	torrentName = cmdCreate.Flags().StringP("name", "n", "", "Torrent name.")
-	torrentDir = cmdCreate.Flags().StringP("dir", "d", "", "Where files should be stored.")
+	trackerAddr = cmdTracker.Flags().StringP("address", "a", defaults.TrackerListenAddress, "Tracker listening address.")
+	daemonAddr = cmdDaemon.Flags().StringP("address", "a", defaults.DaemonListenAddress, "Daemon listening address.")
+	seedAddr = cmdDaemon.Flags().StringP("seed-address", "s", defaults.SeedListenAddress, "Seed listening address.")
+	downloadsDir = cmdDaemon.Flags().StringP("downloads-dir", "d", ".", "Where to place downloaded files.")
+	pieceSize = cmdCreate.Flags().Uint64P("piece-size", "s", defaults.PieceSize, "Piece size.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 	cmdRoot.AddCommand(

@@ -17,7 +17,7 @@ func TestSha256(t *testing.T) {
 }
 
 func TestAllocateZeroedFile(t *testing.T) {
-	size := int64(1024) // 1kB
+	size := uint64(1024) // 1kB
 	err := AllocateZeroedFile(filePath, size)
 
 	assert.NoError(t, err)

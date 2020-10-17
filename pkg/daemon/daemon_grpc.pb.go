@@ -95,3 +95,86 @@ var _Daemon_serviceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "pkg/daemon/daemon.proto",
 }
+
+// SeedClient is the client API for Seed service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type SeedClient interface {
+	Fetch(ctx context.Context, in *FetchRequest, opts ...grpc.CallOption) (*FetchResponse, error)
+}
+
+type seedClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewSeedClient(cc grpc.ClientConnInterface) SeedClient {
+	return &seedClient{cc}
+}
+
+func (c *seedClient) Fetch(ctx context.Context, in *FetchRequest, opts ...grpc.CallOption) (*FetchResponse, error) {
+	out := new(FetchResponse)
+	err := c.cc.Invoke(ctx, "/Seed/Fetch", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// SeedServer is the server API for Seed service.
+// All implementations must embed UnimplementedSeedServer
+// for forward compatibility
+type SeedServer interface {
+	Fetch(context.Context, *FetchRequest) (*FetchResponse, error)
+	mustEmbedUnimplementedSeedServer()
+}
+
+// UnimplementedSeedServer must be embedded to have forward compatible implementations.
+type UnimplementedSeedServer struct {
+}
+
+func (UnimplementedSeedServer) Fetch(context.Context, *FetchRequest) (*FetchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Fetch not implemented")
+}
+func (UnimplementedSeedServer) mustEmbedUnimplementedSeedServer() {}
+
+// UnsafeSeedServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to SeedServer will
+// result in compilation errors.
+type UnsafeSeedServer interface {
+	mustEmbedUnimplementedSeedServer()
+}
+
+func RegisterSeedServer(s *grpc.Server, srv SeedServer) {
+	s.RegisterService(&_Seed_serviceDesc, srv)
+}
+
+func _Seed_Fetch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FetchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SeedServer).Fetch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Seed/Fetch",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SeedServer).Fetch(ctx, req.(*FetchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _Seed_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "Seed",
+	HandlerType: (*SeedServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Fetch",
+			Handler:    _Seed_Fetch_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "pkg/daemon/daemon.proto",
+}

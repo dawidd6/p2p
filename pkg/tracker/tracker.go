@@ -10,25 +10,27 @@ import (
 	"google.golang.org/grpc"
 )
 
-const DefaultListenAddr = "localhost:8889"
+type Config struct {
+	Address string
+}
 
 type Tracker struct {
 	// torrent_sha256 peer_address peer_announce_timestamp
-	index   map[string]map[string]uint64
-	mut     sync.Mutex
-	address string
+	index  map[string]map[string]uint64
+	mut    sync.Mutex
+	config *Config
 	UnimplementedTrackerServer
 }
 
-func New(address string) *Tracker {
+func New(config *Config) *Tracker {
 	return &Tracker{
-		index:   make(map[string]map[string]uint64),
-		address: address,
+		index:  make(map[string]map[string]uint64),
+		config: config,
 	}
 }
 
 func (tracker *Tracker) Listen() error {
-	listener, err := net.Listen("tcp", tracker.address)
+	listener, err := net.Listen("tcp", tracker.config.Address)
 	if err != nil {
 		return err
 	}
@@ -66,42 +68,32 @@ func (tracker *Tracker) GoClean() {
 	}()
 }
 
-func (tracker *Tracker) Register(ctx context.Context, req *RegisterRequest) (*RegisterReply, error) {
-	log.Println("Announce", req.PeerAddress, req.TorrentSha256)
+func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*AnnounceResponse, error) {
+	log.Println("Announce", req.PeerAddress, req.FileHash)
 
 	tracker.mut.Lock()
-	if !tracker.isTorrentSha256Present(req.TorrentSha256) {
-		tracker.index[req.TorrentSha256] = make(map[string]uint64)
+	if !tracker.isHashPresent(req.FileHash) {
+		tracker.index[req.FileHash] = make(map[string]uint64)
 	}
-	tracker.index[req.TorrentSha256][req.PeerAddress] = uint64(time.Now().UTC().Unix())
-	peerAddresses := tracker.peerAddressesForTorrentSha256(req.TorrentSha256, req.PeerAddress)
+	tracker.index[req.FileHash][req.PeerAddress] = uint64(time.Now().UTC().Unix())
+	peerAddresses := tracker.peerAddressesForHash(req.FileHash, req.PeerAddress)
 	tracker.mut.Unlock()
 
-	return &RegisterReply{
+	return &AnnounceResponse{
 		PeerAddresses: peerAddresses,
 	}, nil
 }
 
-func (tracker *Tracker) List(ctx context.Context, req *ListRequest) (*ListReply, error) {
-	tracker.mut.Lock()
-	peerAddresses := tracker.peerAddressesForTorrentSha256(req.TorrentSha256, req.PeerAddress)
-	tracker.mut.Unlock()
-
-	return &ListReply{
-		PeerAddresses: peerAddresses,
-	}, nil
-}
-
-func (tracker *Tracker) isTorrentSha256Present(torrentSha256 string) bool {
+func (tracker *Tracker) isHashPresent(torrentSha256 string) bool {
 	_, ok := tracker.index[torrentSha256]
 
 	return ok
 }
 
-func (tracker *Tracker) peerAddressesForTorrentSha256(torrentSha256, excludedAddress string) []string {
+func (tracker *Tracker) peerAddressesForHash(torrentSha256, excludedAddress string) []string {
 	peerAddresses := make([]string, 0)
 
-	if !tracker.isTorrentSha256Present(torrentSha256) {
+	if !tracker.isHashPresent(torrentSha256) {
 		return peerAddresses
 	}
 
