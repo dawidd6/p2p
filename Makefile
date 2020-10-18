@@ -4,7 +4,7 @@ build:
 	go build -ldflags "-s -w -X main.version=$(VERSION)"
 
 test:
-	go test -v ./...
+	go test -v -count=1 ./...
 
 proto:
 	protoc --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/*/*.proto
