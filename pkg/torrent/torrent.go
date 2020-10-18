@@ -83,35 +83,30 @@ func Save(torrent *Torrent) error {
 }
 
 func Verify(torrent *Torrent, dir string) error {
-	return utils.DoInDirectory(dir, func() error {
-		filePath := filepath.Join(dir, torrent.FileName)
+	file, err := utils.OpenFile(dir, torrent.FileName)
+	if err != nil {
+		return err
+	}
 
-		fileContent, err := ioutil.ReadFile(filePath)
+	fileContent, err := utils.ReadFile(file)
+	if err != nil {
+		return err
+	}
+
+	if utils.Sha256Sum(fileContent) != torrent.FileHash {
+		return errors.FileChecksumMismatchError
+	}
+
+	for i, pieceHash := range torrent.PieceHashes {
+		piece, err := utils.ReadFilePiece(file, torrent.PieceSize, uint64(i))
 		if err != nil {
 			return err
 		}
 
-		expected := torrent.FileHash
-		got := utils.Sha256Sum(fileContent)
-
-		if got != expected {
-			return errors.FileChecksumMismatchError
+		if utils.Sha256Sum(piece) != pieceHash {
+			return errors.PieceChecksumMismatchError
 		}
+	}
 
-		for i, pieceHash := range torrent.PieceHashes {
-			chunk, err := utils.ReadFilePiece(filePath, torrent.PieceSize, uint64(i))
-			if err != nil {
-				return err
-			}
-
-			expected := pieceHash
-			got := utils.Sha256Sum(chunk)
-
-			if got != expected {
-				return errors.PieceChecksumMismatchError
-			}
-		}
-
-		return nil
-	})
+	return nil
 }
