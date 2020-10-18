@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"sort"
 	"sync"
 	"time"
 
@@ -24,8 +23,12 @@ type Config struct {
 	SeedAddress  string
 }
 
+type State struct {
+	DownloadedPieceNumbers []uint64
+}
+
 type Daemon struct {
-	torrents []*torrent.Torrent
+	torrents map[*torrent.Torrent]*State
 	mut      sync.Mutex
 	config   *Config
 	UnimplementedDaemonServer
@@ -34,7 +37,7 @@ type Daemon struct {
 
 func Run(config *Config) error {
 	daemon := &Daemon{
-		torrents: make([]*torrent.Torrent, 0),
+		torrents: make(map[*torrent.Torrent]*State),
 		config:   config,
 	}
 
@@ -105,111 +108,153 @@ func (daemon *Daemon) getPeerAddresses(t *torrent.Torrent) ([]string, error) {
 	return peers, nil
 }
 
-func (daemon *Daemon) fetch(t *torrent.Torrent) error {
+func (daemon *Daemon) fetch(t *torrent.Torrent) {
+	err := os.MkdirAll(daemon.config.DownloadsDir, 0775)
+	if err != nil {
+		log.Println(err)
+	}
+
 	peerAddresses, err := daemon.getPeerAddresses(t)
 	if err != nil {
-		return err
+		log.Println(err)
 	}
 
-	err = os.MkdirAll(daemon.config.DownloadsDir, os.ModeDir)
-	if err != nil {
-		return err
-	}
-
-	err = utils.AllocateZeroedFile(daemon.filePath(t), t.FileSize)
-	if err != nil {
-		return err
-	}
-
-	for i, pieceHash := range t.PieceHashes {
-		// TODO, throttle for now
-		<-time.After(time.Second)
-
-		request := &SeedRequest{
-			FileHash:    t.FileHash,
-			PieceNumber: uint64(i),
+	go func() {
+		for {
+			<-time.After(time.Second * 30)
+			peerAddresses, err = daemon.getPeerAddresses(t)
 		}
+	}()
 
-		for _, peerAddr := range peerAddresses {
-			// TODO use DialContext everywhere
-			conn, err := grpc.DialContext(context.TODO(), peerAddr, grpc.WithInsecure())
-			if err != nil {
-				continue
-			}
-
-			response, err := NewSeederClient(conn).Seed(context.TODO(), request)
-			if err != nil {
-				continue
-			}
-
-			// Peer does not have this piece, ask someone else
-			if response.PieceData == nil {
-				continue
-			}
-
-			// Got the piece wrongly, ask someone else
-			if utils.Sha256Sum(response.PieceData) != pieceHash {
-				continue
-			}
-
-			err = utils.WriteFilePiece(daemon.filePath(t), uint64(i), response.PieceData)
-			if err != nil {
-				continue
-			}
+	err = torrent.Verify(t, daemon.config.DownloadsDir)
+	if err == nil {
+		log.Println("Fetch", "seeding")
+		return
+	} else {
+		err = utils.AllocateZeroedFile(daemon.filePath(t), t.FileSize)
+		if err != nil {
+			log.Println(err)
 		}
 	}
 
-	return nil
+	for {
+		if len(peerAddresses) == 0 {
+			log.Println("no peers available")
+			<-time.After(time.Second * 5)
+			continue
+		}
+
+		for i, pieceHash := range t.PieceHashes {
+			// TODO, throttle for now
+			<-time.After(time.Second * 1)
+
+			request := &SeedRequest{
+				FileHash:    t.FileHash,
+				PieceNumber: uint64(i),
+			}
+
+			piece, err := utils.ReadFilePiece(daemon.filePath(t), t.PieceSize, uint64(i))
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			if utils.Sha256Sum(piece) == pieceHash {
+				log.Println(pieceHash, "already downloaded piece")
+				continue
+			}
+
+			for _, peerAddr := range peerAddresses {
+				log.Println("Fetch", i, pieceHash)
+
+				// TODO use DialContext everywhere
+				conn, err := grpc.DialContext(context.TODO(), peerAddr, grpc.WithInsecure())
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+
+				response, err := NewSeederClient(conn).Seed(context.TODO(), request)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+
+				// Peer does not have this piece, ask someone else
+				if response.PieceData == nil {
+					log.Println(peerAddr, "no piece")
+					continue
+				}
+
+				// Got the piece wrongly, ask someone else
+				if utils.Sha256Sum(response.PieceData) != pieceHash {
+					log.Println(peerAddr, "wrong piece")
+					continue
+				}
+
+				err = utils.WriteFilePiece(daemon.filePath(t), uint64(i), response.PieceData)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+			}
+		}
+
+		err = torrent.Verify(t, daemon.config.DownloadsDir)
+		if err != nil {
+			log.Println(err)
+			continue
+		} else {
+			log.Println("complete")
+			break
+		}
+	}
 }
 
 func (daemon *Daemon) filePath(t *torrent.Torrent) string {
 	return filepath.Join(daemon.config.DownloadsDir, t.FileName)
 }
 
-func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse, error) {
+func (daemon *Daemon) matchTorrent(fileHash string) *torrent.Torrent {
 	daemon.mut.Lock()
-	n := sort.Search(len(daemon.torrents), func(i int) bool {
-		if daemon.torrents[i].FileHash == req.FileHash {
-			return true
+	defer daemon.mut.Unlock()
+	for t := range daemon.torrents {
+		if t.FileHash == fileHash {
+			return t
 		}
-		return false
-	})
-	if n < len(daemon.torrents) {
-	} else {
+	}
+	return nil
+}
+
+func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse, error) {
+	t := daemon.matchTorrent(req.FileHash)
+	if t == nil {
 		return nil, errors.TorrentNotFound
 	}
-	t := daemon.torrents[n]
-	daemon.mut.Unlock()
 
 	piece, err := utils.ReadFilePiece(daemon.filePath(t), t.PieceSize, req.PieceNumber)
 	if err != nil {
 		return nil, err
 	}
 
+	if utils.Sha256Sum(piece) != t.PieceHashes[req.PieceNumber] {
+		return nil, errors.PieceChecksumMismatchError
+	}
+
 	return &SeedResponse{PieceData: piece}, nil
 }
 
 func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, error) {
-	daemon.mut.Lock()
-	n := sort.Search(len(daemon.torrents), func(i int) bool {
-		if daemon.torrents[i].FileHash == req.Torrent.FileHash {
-			return true
-		}
-		return false
-	})
-	if n < len(daemon.torrents) {
+	t := daemon.matchTorrent(req.Torrent.FileHash)
+	if t != nil {
 		return nil, errors.TorrentAlreadyAdded
 	} else {
-		daemon.torrents = append(daemon.torrents, req.Torrent)
+		daemon.mut.Lock()
+		daemon.torrents[req.Torrent] = &State{}
+		daemon.mut.Unlock()
 	}
-	daemon.mut.Unlock()
 
-	go func() {
-		err := daemon.fetch(req.Torrent)
-		if err != nil {
-			log.Println("Fetch", err)
-		}
-	}()
+	go daemon.fetch(req.Torrent)
 
 	return &AddResponse{Torrent: req.Torrent}, nil
 }

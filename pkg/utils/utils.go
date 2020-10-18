@@ -114,7 +114,12 @@ func WriteFilePiece(filePath string, pieceNumber uint64, piece []byte) error {
 
 // AllocateZeroedFile creates a new file filled with zeroes.
 func AllocateZeroedFile(filePath string, fileSize uint64) error {
-	file, err := os.Create(filePath)
+	info, err := os.Stat(filePath)
+	if info != nil {
+		return os.ErrExist
+	}
+
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0664)
 	if err != nil {
 		return err
 	}
