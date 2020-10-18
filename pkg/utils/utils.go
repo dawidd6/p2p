@@ -4,7 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 // Sha256Sum computes SHA-256 sum of given bytes and returns hex representation of it.
@@ -13,42 +15,42 @@ func Sha256Sum(b []byte) string {
 	return hex.EncodeToString(checksum[:])
 }
 
-// ReadFilePiece reads only a specified portion of file.
-func ReadFilePiece(filePath string, pieceSize, pieceNumber uint64) ([]byte, error) {
-	b := make([]byte, pieceSize)
+func CreateDir(dir string) error {
+	return os.MkdirAll(dir, 0775)
+}
 
-	file, err := os.OpenFile(filePath, os.O_RDONLY, 0664)
+func ReadFile(reader io.Reader) ([]byte, error) {
+	return ioutil.ReadAll(reader)
+}
+
+func OpenFile(dir, fileName string) (*os.File, error) {
+	filePath := filepath.Join(dir, fileName)
+	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0664)
 	if err != nil {
 		return nil, err
 	}
+	return file, nil
+}
 
-	n, err := file.ReadAt(b, int64(pieceSize*pieceNumber))
+func ReadFilePiece(reader io.ReaderAt, pieceSize, pieceNumber uint64) ([]byte, error) {
+	b := make([]byte, pieceSize)
+	n, err := reader.ReadAt(b, int64(pieceSize*pieceNumber))
 	if err != nil && err != io.EOF {
 		return nil, err
 	}
-
-	return b[:n], file.Close()
+	return b[:n], nil
 }
 
-// WriteFilePiece writes only a specified portion of file.
-func WriteFilePiece(filePath string, pieceNumber uint64, piece []byte) error {
+func WriteFilePiece(writer io.WriterAt, pieceNumber uint64, piece []byte) error {
 	size := uint64(len(piece))
-
 	if size == 0 {
 		return nil
 	}
-
-	file, err := os.OpenFile(filePath, os.O_WRONLY, 0664)
+	_, err := writer.WriteAt(piece, int64(size*pieceNumber))
 	if err != nil {
 		return err
 	}
-
-	_, err = file.WriteAt(piece, int64(size*pieceNumber))
-	if err != nil {
-		return err
-	}
-
-	return file.Close()
+	return nil
 }
 
 // AllocateZeroedFile creates a new file filled with zeroes.
