@@ -84,6 +84,7 @@ func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*An
 	tracker.mut.Unlock()
 
 	return &AnnounceResponse{
-		PeerAddresses: peerAddresses,
+		PeerAddresses:    peerAddresses,
+		AnnounceInterval: uint32(tracker.config.AnnounceInterval.Seconds()),
 	}, nil
 }
