@@ -46,8 +46,8 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config := &tracker.Config{
 				Address:          *trackerListenAddr,
-				AnnounceInterval: time.Second * 30, // TODO defaults
-				CleanInterval:    time.Second * 60, // TODO defaults
+				AnnounceInterval: *trackerAnnounceInterval,
+				CleanInterval:    *trackerCleanInterval,
 			}
 			return tracker.Run(config)
 		},
@@ -67,12 +67,14 @@ var (
 		Args: cobra.ExactArgs(0),
 	}
 
-	trackerListenAddr *string
-	daemonListenAddr  *string
-	seedListenAddr    *string
-	daemonAddr        *string
-	pieceSize         *uint64
-	downloadsDir      *string
+	trackerAnnounceInterval *time.Duration
+	trackerCleanInterval    *time.Duration
+	trackerListenAddr       *string
+	daemonListenAddr        *string
+	seedListenAddr          *string
+	daemonAddr              *string
+	pieceSize               *uint64
+	downloadsDir            *string
 )
 
 func runCreate(cmd *cobra.Command, args []string) error {
@@ -112,6 +114,8 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	trackerListenAddr = cmdTracker.Flags().StringP("address", "a", defaults.TrackerListenAddress, "Tracker listening address.")
+	trackerAnnounceInterval = cmdTracker.Flags().DurationP("announce-interval", "n", defaults.TrackerAnnounceInterval, "Tracker announcing interval.")
+	trackerCleanInterval = cmdTracker.Flags().DurationP("clean-interval", "c", defaults.TrackerCleanInterval, "Tracker dangling peers cleaning interval.")
 	daemonListenAddr = cmdDaemon.Flags().StringP("address", "a", defaults.DaemonListenAddress, "Daemon listening address.")
 	seedListenAddr = cmdDaemon.Flags().StringP("seed-address", "s", defaults.SeedListenAddress, "Seed listening address.")
 	downloadsDir = cmdDaemon.Flags().StringP("downloads-dir", "d", ".", "Where to place downloaded files.")
