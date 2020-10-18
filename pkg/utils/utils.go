@@ -69,6 +69,15 @@ func ReadFilePieceHashes(filePath string, pieceSize uint64) ([]string, error) {
 	return pieceHashes, nil
 }
 
+func GetFileHash(filePath string) (string, error) {
+	b, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	return Sha256Sum(b), nil
+}
+
 func GetFileSize(filePath string) (uint64, error) {
 	info, err := os.Stat(filePath)
 	if err != nil {
@@ -98,6 +107,10 @@ func ReadFilePiece(filePath string, pieceSize, pieceNumber uint64) ([]byte, erro
 // WriteFilePiece writes only a specified portion of file.
 func WriteFilePiece(filePath string, pieceNumber uint64, piece []byte) error {
 	size := uint64(len(piece))
+
+	if size == 0 {
+		return nil
+	}
 
 	file, err := os.OpenFile(filePath, os.O_WRONLY, 0664)
 	if err != nil {

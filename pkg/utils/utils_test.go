@@ -111,7 +111,46 @@ func TestDoInDirectory(t *testing.T) {
 }
 
 func TestIntegration(t *testing.T) {
-	fileSize := uint64(512)
-	err := AllocateZeroedFile(filePath, fileSize)
+	originalFilePath := "test.orig"
+	newFilePath := "test"
+	data := []byte("1234567890\nabcdef\n")
+	pieceSize := 5 // TODO this number needs to be a divide of len(data) !!!
+	t.Log(len(data))
+
+	err := ioutil.WriteFile(originalFilePath, data, os.ModePerm)
 	assert.NoError(t, err)
+	assert.FileExists(t, originalFilePath)
+
+	err = AllocateZeroedFile(newFilePath, uint64(len(data)))
+	assert.NoError(t, err)
+	assert.FileExists(t, newFilePath)
+
+	for i := 0; i < len(data); i++ {
+		piece, err := ReadFilePiece(originalFilePath, uint64(pieceSize), uint64(i))
+		assert.NoError(t, err)
+		assert.NotNil(t, piece)
+
+		err = WriteFilePiece(newFilePath, uint64(i), piece)
+		assert.NoError(t, err)
+	}
+
+	originalFileHash, err := GetFileHash(originalFilePath)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, originalFileHash)
+
+	newFileHash, err := GetFileHash(newFilePath)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, newFileHash)
+
+	assert.Equal(t, originalFileHash, newFileHash)
+
+	t.Cleanup(func() {
+		err := os.Remove(originalFilePath)
+		assert.NoError(t, err)
+		assert.NoFileExists(t, filePath)
+
+		err = os.Remove(newFilePath)
+		assert.NoError(t, err)
+		assert.NoFileExists(t, filePath)
+	})
 }
