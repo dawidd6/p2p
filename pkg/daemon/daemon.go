@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"context"
+	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -126,15 +128,19 @@ func (daemon *Daemon) fetch(t *torrent.Torrent) {
 		}
 	}()
 
-	err = torrent.Verify(t, daemon.config.DownloadsDir)
-	if err == nil {
-		log.Println("Fetch", "seeding")
+	file, err := os.OpenFile(daemon.filePath(t), os.O_RDWR|os.O_CREATE, 0664)
+	if err != nil {
+		log.Println(err)
+	}
+
+	fileContent, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Println(err)
+	}
+
+	if utils.Sha256Sum(fileContent) == t.FileHash {
+		log.Println("seeding")
 		return
-	} else {
-		err = utils.AllocateZeroedFile(daemon.filePath(t), t.FileSize)
-		if err != nil {
-			log.Println(err)
-		}
 	}
 
 	for {
@@ -145,19 +151,24 @@ func (daemon *Daemon) fetch(t *torrent.Torrent) {
 		}
 
 		for i, pieceHash := range t.PieceHashes {
+			pieceNumber := 4 - uint64(i)
+			pieceHash = t.PieceHashes[pieceNumber]
+			pieceOffset := int64(t.PieceSize * pieceNumber)
+
 			// TODO, throttle for now
 			<-time.After(time.Second * 1)
 
 			request := &SeedRequest{
 				FileHash:    t.FileHash,
-				PieceNumber: uint64(i),
+				PieceNumber: pieceNumber,
 			}
 
-			piece, err := utils.ReadFilePiece(daemon.filePath(t), t.PieceSize, uint64(i))
-			if err != nil {
+			piece := make([]byte, t.PieceSize)
+			n, err := file.ReadAt(piece, pieceOffset)
+			if err != nil && err != io.EOF {
 				log.Println(err)
-				continue
 			}
+			piece = piece[:n]
 
 			if utils.Sha256Sum(piece) == pieceHash {
 				log.Println(pieceHash, "already downloaded piece")
@@ -165,7 +176,7 @@ func (daemon *Daemon) fetch(t *torrent.Torrent) {
 			}
 
 			for _, peerAddr := range peerAddresses {
-				log.Println("Fetch", i, pieceHash)
+				log.Println("Fetch", pieceNumber, pieceHash)
 
 				// TODO use DialContext everywhere
 				conn, err := grpc.DialContext(context.TODO(), peerAddr, grpc.WithInsecure())
@@ -192,7 +203,7 @@ func (daemon *Daemon) fetch(t *torrent.Torrent) {
 					continue
 				}
 
-				err = utils.WriteFilePiece(daemon.filePath(t), uint64(i), response.PieceData)
+				_, err = file.WriteAt(response.PieceData, pieceOffset)
 				if err != nil {
 					log.Println(err)
 					continue
@@ -200,14 +211,23 @@ func (daemon *Daemon) fetch(t *torrent.Torrent) {
 			}
 		}
 
-		err = torrent.Verify(t, daemon.config.DownloadsDir)
+		fileContent, err := ioutil.ReadAll(file)
 		if err != nil {
 			log.Println(err)
+		}
+
+		if utils.Sha256Sum(fileContent) != t.FileHash {
+			log.Println(errors.FileChecksumMismatchError)
 			continue
 		} else {
-			log.Println("complete")
+			log.Println("completed")
 			break
 		}
+	}
+
+	err = file.Close()
+	if err != nil {
+		log.Println(err)
 	}
 }
 
@@ -232,10 +252,17 @@ func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse
 		return nil, errors.TorrentNotFound
 	}
 
-	piece, err := utils.ReadFilePiece(daemon.filePath(t), t.PieceSize, req.PieceNumber)
+	file, err := os.OpenFile(daemon.filePath(t), os.O_RDONLY, 0664)
 	if err != nil {
-		return nil, err
+		log.Println(err)
 	}
+
+	piece := make([]byte, t.PieceSize)
+	n, err := file.ReadAt(piece, int64(t.PieceSize*req.PieceNumber))
+	if err != nil && err != io.EOF {
+		log.Println(err)
+	}
+	piece = piece[:n]
 
 	if utils.Sha256Sum(piece) != t.PieceHashes[req.PieceNumber] {
 		return nil, errors.PieceChecksumMismatchError
