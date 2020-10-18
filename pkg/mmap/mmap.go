@@ -50,3 +50,15 @@ func (m *MMap) Keys() interface{} {
 	m.mut.Unlock()
 	return keys
 }
+
+func (m *MMap) Len() uint64 {
+	return uint64(len(m.m))
+}
+
+func (m *MMap) Iterate(f func(key, value interface{})) {
+	m.mut.Lock()
+	for key, value := range m.m {
+		f(key, value)
+	}
+	m.mut.Unlock()
+}

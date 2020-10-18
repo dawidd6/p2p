@@ -9,8 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/dawidd6/p2p/pkg/file"
+	"github.com/dawidd6/p2p/pkg/hash"
+	"github.com/dawidd6/p2p/pkg/piece"
+
 	"github.com/dawidd6/p2p/pkg/errors"
-	"github.com/dawidd6/p2p/pkg/utils"
 )
 
 const FileExtension = "torrent.json"
@@ -25,9 +28,9 @@ func Create(filePath string, pieceSize uint64) (*Torrent, error) {
 	pieceHashes := make([]string, 0)
 
 	for {
-		piece := make([]byte, pieceSize)
+		pieceData := make([]byte, pieceSize)
 
-		n, err := reader.Read(piece)
+		n, err := reader.Read(pieceData)
 		if err == io.EOF {
 			break
 		}
@@ -35,20 +38,19 @@ func Create(filePath string, pieceSize uint64) (*Torrent, error) {
 			return nil, err
 		}
 
-		pieceHash := utils.Sha256Sum(piece[:n])
+		pieceData = pieceData[:n]
+		pieceHash := hash.Compute(pieceData)
 		pieceHashes = append(pieceHashes, pieceHash)
 	}
 
-	t := &Torrent{
+	return &Torrent{
 		FileName:         filepath.Base(filePath),
-		FileHash:         utils.Sha256Sum(fileContent),
+		FileHash:         hash.Compute(fileContent),
 		FileSize:         uint64(len(fileContent)),
 		PieceSize:        pieceSize,
 		PieceHashes:      pieceHashes,
 		TrackerAddresses: []string{"localhost:8889"}, // TODO customizable trackers urls
-	}
-
-	return t, nil
+	}, nil
 }
 
 func Load(filePath string) (*Torrent, error) {
@@ -83,27 +85,27 @@ func Save(torrent *Torrent) error {
 }
 
 func Verify(torrent *Torrent, dir string) error {
-	file, err := utils.OpenFile(dir, torrent.FileName)
+	f, err := file.Open(dir, torrent.FileName)
 	if err != nil {
 		return err
 	}
 
-	fileContent, err := utils.ReadFile(file)
+	fileContent, err := file.ReadAll(f)
 	if err != nil {
 		return err
 	}
 
-	if utils.Sha256Sum(fileContent) != torrent.FileHash {
+	if hash.Compute(fileContent) != torrent.FileHash {
 		return errors.FileChecksumMismatchError
 	}
 
 	for i, pieceHash := range torrent.PieceHashes {
-		piece, err := utils.ReadFilePiece(file, torrent.PieceSize, uint64(i))
+		pieceData, err := piece.Read(f, torrent.PieceSize, uint64(i))
 		if err != nil {
 			return err
 		}
 
-		if utils.Sha256Sum(piece) != pieceHash {
+		if hash.Compute(pieceData) != pieceHash {
 			return errors.PieceChecksumMismatchError
 		}
 	}

@@ -2,21 +2,22 @@ package daemon
 
 import (
 	"context"
-	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/dawidd6/p2p/pkg/hash"
+	"github.com/dawidd6/p2p/pkg/piece"
+
+	"github.com/dawidd6/p2p/pkg/file"
+
 	"github.com/dawidd6/p2p/pkg/mmap"
 
 	"github.com/dawidd6/p2p/pkg/errors"
 	"github.com/dawidd6/p2p/pkg/torrent"
 	"github.com/dawidd6/p2p/pkg/tracker"
-	"github.com/dawidd6/p2p/pkg/utils"
-
 	"google.golang.org/grpc"
 )
 
@@ -75,14 +76,13 @@ func Run(config *Config) error {
 	return <-ch
 }
 
-func (daemon *Daemon) announce(state *State) ([]string, uint32, error) {
-	peers := mmap.New()
-	announceInterval := uint32(0)
+func (daemon *Daemon) announce(state *State) (map[string]*tracker.AnnounceResponse, error) {
+	track := make(map[string]*tracker.AnnounceResponse)
 
 	for _, trackerAddr := range state.Torrent.TrackerAddresses {
 		conn, err := grpc.Dial(trackerAddr, grpc.WithInsecure())
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 
 		request := &tracker.AnnounceRequest{
@@ -92,27 +92,24 @@ func (daemon *Daemon) announce(state *State) ([]string, uint32, error) {
 
 		response, err := tracker.NewTrackerClient(conn).Announce(context.TODO(), request)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
+		track[trackerAddr] = response
 
-		for _, peer := range response.PeerAddresses {
-			peers.Set(peer, struct{}{})
-		}
-
-		announceInterval = response.AnnounceInterval
 	}
 
-	return peers.Keys().([]string), announceInterval, nil
+	return track, nil
 }
 
 func (daemon *Daemon) fetch(state *State) {
-	err := utils.CreateDir(daemon.config.DownloadsDir)
+	err := file.CreateDirectory(daemon.config.DownloadsDir)
+
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	peerAddresses, announceInterval, err := daemon.announce(state)
+	a, err := daemon.announce(state)
 	if err != nil {
 		log.Println(err)
 	}
@@ -120,7 +117,7 @@ func (daemon *Daemon) fetch(state *State) {
 	go func() {
 		for {
 			select {
-			case <-time.After(time.Duration(announceInterval) * time.Second):
+			case <-time.After(time.Duration(a) * time.Second):
 				peerAddresses, announceInterval, err = daemon.announce(state)
 			case <-state.AnnounceChannel:
 				break
@@ -128,21 +125,14 @@ func (daemon *Daemon) fetch(state *State) {
 		}
 	}()
 
-	file, err := utils.OpenFile(daemon.config.DownloadsDir, state.Torrent.FileName)
+	state.File, err = file.Open(daemon.config.DownloadsDir, state.Torrent.FileName)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	state.File = file
-
-	fileContent, err := utils.ReadFile(file)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	if utils.Sha256Sum(fileContent) == state.Torrent.FileHash {
+	err = torrent.Verify(state.Torrent, daemon.config.DownloadsDir)
+	if err == nil {
 		log.Println("seeding")
 		return
 	}
@@ -156,7 +146,6 @@ func (daemon *Daemon) fetch(state *State) {
 
 		for i, pieceHash := range state.Torrent.PieceHashes {
 			pieceNumber := uint64(i)
-			pieceOffset := int64(state.Torrent.PieceSize * pieceNumber)
 
 			// TODO, throttle for now
 			<-time.After(time.Second * 1)
@@ -166,14 +155,12 @@ func (daemon *Daemon) fetch(state *State) {
 				PieceNumber: pieceNumber,
 			}
 
-			piece := make([]byte, state.Torrent.PieceSize)
-			n, err := file.ReadAt(piece, pieceOffset)
-			if err != nil && err != io.EOF {
+			pieceData, err := piece.Read(state.File, state.Torrent.PieceSize, pieceNumber)
+			if err != nil {
 				log.Println(err)
 			}
-			piece = piece[:n]
 
-			if utils.Sha256Sum(piece) == pieceHash {
+			if hash.Compute(pieceData) == pieceHash {
 				log.Println(pieceHash, "already downloaded piece")
 				continue
 			}
@@ -201,12 +188,12 @@ func (daemon *Daemon) fetch(state *State) {
 				}
 
 				// Got the piece wrongly, ask someone else
-				if utils.Sha256Sum(response.PieceData) != pieceHash {
+				if hash.Compute(response.PieceData) != pieceHash {
 					log.Println(peerAddr, "wrong piece")
 					continue
 				}
 
-				_, err = file.WriteAt(response.PieceData, pieceOffset)
+				err = piece.Write(state.File, pieceNumber, pieceData)
 				if err != nil {
 					log.Println(err)
 					continue
@@ -214,17 +201,13 @@ func (daemon *Daemon) fetch(state *State) {
 			}
 		}
 
-		fileContent, err := ioutil.ReadAll(file)
+		err = torrent.Verify(state.Torrent, daemon.config.DownloadsDir)
 		if err != nil {
 			log.Println(err)
-		}
-
-		if utils.Sha256Sum(fileContent) != state.Torrent.FileHash {
-			log.Println(errors.FileChecksumMismatchError)
 			continue
 		} else {
 			log.Println("completed")
-			break
+			return
 		}
 	}
 }
@@ -240,18 +223,12 @@ func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse
 
 	state := daemon.torrents.Get(req.FileHash).(State)
 
-	piece := make([]byte, state.Torrent.PieceSize)
-	n, err := state.File.ReadAt(piece, int64(state.Torrent.PieceSize*req.PieceNumber))
-	if err != nil && err != io.EOF {
-		log.Println(err)
-	}
-	piece = piece[:n]
-
-	if utils.Sha256Sum(piece) != state.Torrent.PieceHashes[req.PieceNumber] {
-		return nil, errors.PieceChecksumMismatchError
+	pieceData, err := piece.Read(state.File, state.Torrent.PieceSize, req.PieceNumber)
+	if err != nil {
+		return nil, err
 	}
 
-	return &SeedResponse{PieceData: piece}, nil
+	return &SeedResponse{PieceData: pieceData}, nil
 }
 
 func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, error) {
