@@ -84,18 +84,6 @@ func TestReadFilePiece(t *testing.T) {
 
 }
 
-func TestReadFilePieces(t *testing.T) {
-	pieces, err := ReadFilePieces(filePath, 7)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, pieces)
-
-	for i, piece := range pieces {
-		err := WriteFilePiece(filePath, uint64(i), piece)
-		assert.NoError(t, err)
-	}
-}
-
 func TestDoInDirectory(t *testing.T) {
 	err := DoInDirectory("", func() error {
 		return nil
@@ -115,7 +103,6 @@ func TestIntegration(t *testing.T) {
 	newFilePath := "test"
 	data := []byte("1234567890\nabcdef\n")
 	pieceSize := 5 // TODO this number needs to be a divide of len(data) !!!
-	t.Log(len(data))
 
 	err := ioutil.WriteFile(originalFilePath, data, os.ModePerm)
 	assert.NoError(t, err)
@@ -125,24 +112,22 @@ func TestIntegration(t *testing.T) {
 	assert.NoError(t, err)
 	assert.FileExists(t, newFilePath)
 
+	file, err := os.OpenFile(newFilePath, os.O_WRONLY, 0664)
+	assert.NoError(t, err)
+
 	for i := 0; i < len(data); i++ {
 		piece, err := ReadFilePiece(originalFilePath, uint64(pieceSize), uint64(i))
 		assert.NoError(t, err)
 		assert.NotNil(t, piece)
 
-		err = WriteFilePiece(newFilePath, uint64(i), piece)
+		//err = WriteFilePiece(newFilePath, uint64(i), piece)
+
+		_, err = file.WriteAt(piece, int64(pieceSize*i))
 		assert.NoError(t, err)
 	}
 
-	originalFileHash, err := GetFileHash(originalFilePath)
+	err = file.Close()
 	assert.NoError(t, err)
-	assert.NotEmpty(t, originalFileHash)
-
-	newFileHash, err := GetFileHash(newFilePath)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, newFileHash)
-
-	assert.Equal(t, originalFileHash, newFileHash)
 
 	t.Cleanup(func() {
 		err := os.Remove(originalFilePath)
