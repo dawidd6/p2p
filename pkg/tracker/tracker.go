@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dawidd6/p2p/pkg/defaults"
+
 	"google.golang.org/grpc"
 )
 
@@ -41,7 +43,7 @@ func Run(config *Config) error {
 		return err
 	}
 
-	server := grpc.NewServer()
+	server := grpc.NewServer(grpc.ConnectionTimeout(defaults.TrackerConnTimeout))
 	RegisterTrackerServer(server, tracker)
 	return server.Serve(listener)
 }

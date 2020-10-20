@@ -10,5 +10,9 @@ const (
 	TrackerAnnounceInterval = time.Second * 30
 	TrackerCleanInterval    = time.Second * 60
 
+	TrackerConnTimeout = time.Second * 5
+	DaemonConnTimeout  = time.Second * 3
+	SeedConnTimeout    = time.Second * 2
+
 	PieceSize = 256 * 1024 // 256 kB
 )

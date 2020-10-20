@@ -61,7 +61,7 @@ func Run(config *Config) error {
 			channel <- err
 		}
 
-		server := grpc.NewServer()
+		server := grpc.NewServer(grpc.ConnectionTimeout(defaults.DaemonConnTimeout))
 		RegisterDaemonServer(server, daemon)
 		channel <- server.Serve(listener)
 	}()
@@ -72,7 +72,7 @@ func Run(config *Config) error {
 			channel <- err
 		}
 
-		server := grpc.NewServer()
+		server := grpc.NewServer(grpc.ConnectionTimeout(defaults.SeedConnTimeout))
 		RegisterSeederServer(server, daemon)
 		channel <- server.Serve(listener)
 	}()
@@ -93,7 +93,7 @@ func (daemon *Daemon) announce(state *State) error {
 		PeerAddress: daemon.config.SeedListenAddress,
 	}
 
-	response, err := tracker.NewTrackerClient(conn).Announce(context.TODO(), request)
+	response, err := tracker.NewTrackerClient(conn).Announce(context.Background(), request)
 	if err != nil {
 		return err
 	}
@@ -171,8 +171,7 @@ func (daemon *Daemon) fetch(state *State) {
 			for _, peerAddr := range state.PeerAddresses {
 				log.Println("Fetch", pieceNumber, pieceHash)
 
-				// TODO use DialContext everywhere
-				conn, err := grpc.DialContext(context.TODO(), peerAddr, grpc.WithInsecure())
+				conn, err := grpc.Dial(peerAddr, grpc.WithInsecure())
 				if err != nil {
 					log.Println(err)
 					continue
