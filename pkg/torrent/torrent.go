@@ -1,16 +1,13 @@
 package torrent
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/dawidd6/p2p/pkg/file"
 	"github.com/dawidd6/p2p/pkg/hash"
 	"github.com/dawidd6/p2p/pkg/piece"
 
@@ -19,35 +16,46 @@ import (
 
 const FileExtension = "torrent.json"
 
-func Create(filePath string, pieceSize int64, trackerAddr string) (*Torrent, error) {
-	fileContent, err := ioutil.ReadFile(filePath)
+func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error) {
+	info, err := file.Stat()
 	if err != nil {
 		return nil, err
 	}
 
-	reader := bytes.NewReader(fileContent)
+	fileHash := hash.New()
+	pieceHash := hash.New()
 	pieceHashes := make([]string, 0)
 
 	for {
 		pieceData := make([]byte, pieceSize)
 
-		n, err := reader.Read(pieceData)
+		n, err := file.Read(pieceData)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return nil, err
 		}
-
 		pieceData = pieceData[:n]
-		pieceHash := hash.Compute(pieceData)
-		pieceHashes = append(pieceHashes, pieceHash)
+
+		n, err = fileHash.Write(pieceData)
+		if err != nil {
+			return nil, err
+		}
+
+		n, err = pieceHash.Write(pieceData)
+		if err != nil {
+			return nil, err
+		}
+
+		pieceHashes = append(pieceHashes, pieceHash.HexSum())
+		pieceHash.Reset()
 	}
 
 	return &Torrent{
-		FileName:       filepath.Base(filePath),
-		FileHash:       hash.Compute(fileContent),
-		FileSize:       int64(len(fileContent)),
+		FileName:       file.Name(),
+		FileHash:       fileHash.HexSum(),
+		FileSize:       info.Size(),
 		PieceSize:      pieceSize,
 		PieceHashes:    pieceHashes,
 		TrackerAddress: trackerAddr,
@@ -82,7 +90,7 @@ func Save(torrent *Torrent) error {
 		return err
 	}
 
-	return ioutil.WriteFile(filename, message, 0644)
+	return ioutil.WriteFile(filename, message, 0666)
 }
 
 func Verify(torrent *Torrent, f *os.File) error {
@@ -97,15 +105,6 @@ func Verify(torrent *Torrent, f *os.File) error {
 		if hash.Compute(pieceData) != pieceHash {
 			return errors.PieceChecksumMismatchError
 		}
-	}
-
-	fileContent, err := file.ReadAll(f)
-	if err != nil {
-		return err
-	}
-
-	if hash.Compute(fileContent) != torrent.FileHash {
-		return errors.FileChecksumMismatchError
 	}
 
 	return nil

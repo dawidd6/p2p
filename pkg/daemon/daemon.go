@@ -12,8 +12,6 @@ import (
 	"github.com/dawidd6/p2p/pkg/hash"
 	"github.com/dawidd6/p2p/pkg/piece"
 
-	"github.com/dawidd6/p2p/pkg/file"
-
 	"github.com/dawidd6/p2p/pkg/errors"
 	"github.com/dawidd6/p2p/pkg/torrent"
 	"github.com/dawidd6/p2p/pkg/tracker"
@@ -48,6 +46,16 @@ func Run(config *Config) error {
 	daemon := &Daemon{
 		config:   config,
 		torrents: make(map[string]*Task),
+	}
+
+	err := os.MkdirAll(config.DownloadsDir, 0775)
+	if err != nil {
+		return err
+	}
+
+	err = os.Chdir(config.DownloadsDir)
+	if err != nil {
+		return err
 	}
 
 	channel := make(chan error)
@@ -108,13 +116,7 @@ func (daemon *Daemon) announce(task *Task) error {
 }
 
 func (daemon *Daemon) fetch(task *Task) {
-	err := file.CreateDirectory(daemon.config.DownloadsDir)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	err = daemon.announce(task)
+	err := daemon.announce(task)
 	if err != nil {
 		log.Println(err)
 	}
@@ -129,7 +131,7 @@ func (daemon *Daemon) fetch(task *Task) {
 		}
 	}()
 
-	task.File, err = file.Open(daemon.config.DownloadsDir, task.Torrent.FileName)
+	task.File, err = os.OpenFile(task.Torrent.FileName, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		log.Println(err)
 		return
@@ -282,7 +284,7 @@ func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteRe
 	}
 
 	if req.WithData {
-		err := file.Remove(daemon.config.DownloadsDir, task.Torrent.FileName)
+		err := os.Remove(task.Torrent.FileName)
 		if err != nil {
 			return nil, err
 		}
