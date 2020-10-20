@@ -5,15 +5,13 @@ import (
 	"log"
 	"net"
 	"os"
-	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/dawidd6/p2p/pkg/hash"
 	"github.com/dawidd6/p2p/pkg/piece"
 
 	"github.com/dawidd6/p2p/pkg/file"
-
-	"github.com/dawidd6/p2p/pkg/mmap"
 
 	"github.com/dawidd6/p2p/pkg/errors"
 	"github.com/dawidd6/p2p/pkg/torrent"
@@ -22,83 +20,87 @@ import (
 )
 
 type Config struct {
-	DownloadsDir string
-	Address      string
-	SeedAddress  string
+	DownloadsDir      string
+	ListenAddress     string
+	SeedListenAddress string
 }
 
 type State struct {
-	DownloadedPieceNumbers *mmap.MMap
-	File                   *os.File
-	Torrent                *torrent.Torrent
-	AnnounceChannel        chan struct{}
+	DownloadedPieces uint64
+	File             *os.File
+	Torrent          *torrent.Torrent
+	Peers            []string
+	AnnounceInterval time.Duration
+	AnnounceChannel  chan struct{}
 }
 
 type Daemon struct {
-	torrents *mmap.MMap // map[string(fileHash)]*State
-	config   *Config
+	config      *Config
+	torrents    map[string]*State
+	mutex       sync.RWMutex
+	addChannel  chan *AddRequest
+	seedChannel chan *SeedRequest
 	UnimplementedDaemonServer
 	UnimplementedSeederServer
 }
 
 func Run(config *Config) error {
 	daemon := &Daemon{
-		torrents: mmap.New(),
-		config:   config,
+		config:      config,
+		torrents:    make(map[string]*State),
+		addChannel:  make(chan *AddRequest),
+		seedChannel: make(chan *SeedRequest, 5),
 	}
 
-	ch := make(chan error)
+	channel := make(chan error)
 
 	go func() {
-		listener, err := net.Listen("tcp", daemon.config.Address)
+		listener, err := net.Listen("tcp", config.ListenAddress)
 		if err != nil {
-			ch <- err
-			return
+			channel <- err
 		}
 
 		server := grpc.NewServer()
 		RegisterDaemonServer(server, daemon)
-		ch <- server.Serve(listener)
+		channel <- server.Serve(listener)
 	}()
 
 	go func() {
-		listener, err := net.Listen("tcp", daemon.config.SeedAddress)
+		listener, err := net.Listen("tcp", config.SeedListenAddress)
 		if err != nil {
-			ch <- err
-			return
+			channel <- err
 		}
 
 		server := grpc.NewServer()
 		RegisterSeederServer(server, daemon)
-		ch <- server.Serve(listener)
+		channel <- server.Serve(listener)
 	}()
 
-	return <-ch
+	// channel <- daemon.loop() TODO
+
+	return <-channel
 }
 
-func (daemon *Daemon) announce(state *State) (map[string]*tracker.AnnounceResponse, error) {
-	track := make(map[string]*tracker.AnnounceResponse)
-
-	for _, trackerAddr := range state.Torrent.TrackerAddresses {
-		conn, err := grpc.Dial(trackerAddr, grpc.WithInsecure())
-		if err != nil {
-			return nil, err
-		}
-
-		request := &tracker.AnnounceRequest{
-			FileHash:    state.Torrent.FileHash,
-			PeerAddress: daemon.config.SeedAddress,
-		}
-
-		response, err := tracker.NewTrackerClient(conn).Announce(context.TODO(), request)
-		if err != nil {
-			return nil, err
-		}
-		track[trackerAddr] = response
-
+func (daemon *Daemon) announce(state *State) error {
+	conn, err := grpc.Dial(state.Torrent.TrackerAddress, grpc.WithInsecure())
+	if err != nil {
+		return err
 	}
 
-	return track, nil
+	request := &tracker.AnnounceRequest{
+		FileHash:    state.Torrent.FileHash,
+		PeerAddress: daemon.config.SeedListenAddress,
+	}
+
+	response, err := tracker.NewTrackerClient(conn).Announce(context.TODO(), request)
+	if err != nil {
+		return err
+	}
+
+	state.Peers = response.PeerAddresses
+	state.AnnounceInterval = time.Duration(response.AnnounceInterval) * time.Second
+
+	return nil
 }
 
 func (daemon *Daemon) fetch(state *State) {
@@ -109,7 +111,7 @@ func (daemon *Daemon) fetch(state *State) {
 		return
 	}
 
-	a, err := daemon.announce(state)
+	err = daemon.announce(state)
 	if err != nil {
 		log.Println(err)
 	}
@@ -117,8 +119,8 @@ func (daemon *Daemon) fetch(state *State) {
 	go func() {
 		for {
 			select {
-			case <-time.After(time.Duration(a) * time.Second):
-				peerAddresses, announceInterval, err = daemon.announce(state)
+			case <-time.After(state.AnnounceInterval):
+				err = daemon.announce(state)
 			case <-state.AnnounceChannel:
 				break
 			}
@@ -138,7 +140,7 @@ func (daemon *Daemon) fetch(state *State) {
 	}
 
 	for {
-		if len(peerAddresses) == 0 {
+		if len(state.Peers) == 0 {
 			log.Println("no peers available")
 			<-time.After(time.Second * 5)
 			continue
@@ -165,7 +167,7 @@ func (daemon *Daemon) fetch(state *State) {
 				continue
 			}
 
-			for _, peerAddr := range peerAddresses {
+			for _, peerAddr := range state.Peers {
 				log.Println("Fetch", pieceNumber, pieceHash)
 
 				// TODO use DialContext everywhere
@@ -212,16 +214,14 @@ func (daemon *Daemon) fetch(state *State) {
 	}
 }
 
-func (daemon *Daemon) filePath(t *torrent.Torrent) string {
-	return filepath.Join(daemon.config.DownloadsDir, t.FileName)
-}
-
 func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse, error) {
-	if !daemon.torrents.Has(req.FileHash) {
+	daemon.mutex.RLock()
+	defer daemon.mutex.RUnlock()
+
+	state, ok := daemon.torrents[req.FileHash]
+	if !ok {
 		return nil, errors.TorrentNotFound
 	}
-
-	state := daemon.torrents.Get(req.FileHash).(State)
 
 	pieceData, err := piece.Read(state.File, state.Torrent.PieceSize, req.PieceNumber)
 	if err != nil {
@@ -232,18 +232,23 @@ func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse
 }
 
 func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, error) {
-	if daemon.torrents.Has(req.Torrent.FileHash) {
+	daemon.mutex.Lock()
+	defer daemon.mutex.Unlock()
+
+	state, ok := daemon.torrents[req.Torrent.FileHash]
+	if ok {
 		return nil, errors.TorrentAlreadyAdded
 	}
 
-	state := &State{
-		DownloadedPieceNumbers: mmap.New(),
-		Torrent:                req.Torrent,
-		AnnounceChannel:        make(chan struct{}),
+	state = &State{
+		DownloadedPieces: 0,
+		Torrent:          req.Torrent,
+		Peers:            []string{},
+		AnnounceChannel:  make(chan struct{}),
+		AnnounceInterval: time.Second,
 	}
 
-	daemon.torrents.Set(req.Torrent.FileHash, state)
-
+	daemon.torrents[req.Torrent.FileHash] = state
 	go daemon.fetch(state)
 
 	return &AddResponse{Torrent: req.Torrent}, nil

@@ -10,7 +10,5 @@
     "88d01283fa0ecdf8294d27f90a5c5392626b31ad3c884f7bf6c9359148dcbf4f",
     "b462e5973323da7fa60e40d46bd09b0bb03f78cc07e8db5996051c1ed384ea09"
   ],
-  "tracker_addresses": [
-    "localhost:8889"
-  ]
+  "tracker_address": "127.0.0.1:8889"
 }

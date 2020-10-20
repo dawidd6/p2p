@@ -18,7 +18,7 @@ import (
 
 const FileExtension = "torrent.json"
 
-func Create(filePath string, pieceSize uint64) (*Torrent, error) {
+func Create(filePath string, pieceSize uint64, trackerAddr string) (*Torrent, error) {
 	fileContent, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, err
@@ -44,12 +44,12 @@ func Create(filePath string, pieceSize uint64) (*Torrent, error) {
 	}
 
 	return &Torrent{
-		FileName:         filepath.Base(filePath),
-		FileHash:         hash.Compute(fileContent),
-		FileSize:         uint64(len(fileContent)),
-		PieceSize:        pieceSize,
-		PieceHashes:      pieceHashes,
-		TrackerAddresses: []string{"localhost:8889"}, // TODO customizable trackers urls
+		FileName:       filepath.Base(filePath),
+		FileHash:       hash.Compute(fileContent),
+		FileSize:       uint64(len(fileContent)),
+		PieceSize:      pieceSize,
+		PieceHashes:    pieceHashes,
+		TrackerAddress: trackerAddr,
 	}, nil
 }
 

@@ -11,28 +11,32 @@ import (
 )
 
 type Config struct {
-	Address          string
+	ListenAddress    string
 	AnnounceInterval time.Duration
 	CleanInterval    time.Duration
 }
 
 type Tracker struct {
-	// torrent_sha256 peer_address peer_announce_timestamp
-	index  map[string]map[string]uint64
-	mut    sync.Mutex
 	config *Config
+	index  map[string]map[string]time.Time
+	mutex  sync.Mutex
 	UnimplementedTrackerServer
 }
 
 func Run(config *Config) error {
 	tracker := &Tracker{
-		index:  make(map[string]map[string]uint64),
 		config: config,
+		index:  make(map[string]map[string]time.Time),
 	}
 
-	go tracker.clean()
+	go func() {
+		for {
+			<-time.After(config.CleanInterval)
+			tracker.clean()
+		}
+	}()
 
-	listener, err := net.Listen("tcp", config.Address)
+	listener, err := net.Listen("tcp", config.ListenAddress)
 	if err != nil {
 		return err
 	}
@@ -43,45 +47,41 @@ func Run(config *Config) error {
 }
 
 func (tracker *Tracker) clean() {
-	for {
-		<-time.After(tracker.config.CleanInterval)
+	tracker.mutex.Lock()
+	defer tracker.mutex.Unlock()
 
-		currentTimestamp := uint64(time.Now().UTC().Unix())
-
-		tracker.mut.Lock()
-		for fileHash := range tracker.index {
-			for peerAddress, peerTimestamp := range tracker.index[fileHash] {
-				if currentTimestamp-peerTimestamp > 60 {
-					log.Println("Clean", fileHash, peerAddress)
-					delete(tracker.index[fileHash], peerAddress)
-				}
+	for fileHash := range tracker.index {
+		for peerAddress, peerTimestamp := range tracker.index[fileHash] {
+			if time.Since(peerTimestamp) > tracker.config.AnnounceInterval*2 {
+				log.Println("Clean", fileHash, peerAddress)
+				delete(tracker.index[fileHash], peerAddress)
 			}
 			if len(tracker.index[fileHash]) == 0 {
 				log.Println("Clean", fileHash)
 				delete(tracker.index, fileHash)
 			}
 		}
-		tracker.mut.Unlock()
 	}
 }
 
 func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*AnnounceResponse, error) {
-	log.Println("Announce", req.PeerAddress, req.FileHash)
-	peerAddresses := make([]string, 0)
+	log.Println("Announce", req.PeerAddress)
 
-	tracker.mut.Lock()
+	tracker.mutex.Lock()
+	defer tracker.mutex.Unlock()
+
 	if _, ok := tracker.index[req.FileHash]; !ok {
-		tracker.index[req.FileHash] = make(map[string]uint64)
+		tracker.index[req.FileHash] = make(map[string]time.Time)
 	}
-	tracker.index[req.FileHash][req.PeerAddress] = uint64(time.Now().UTC().Unix())
-	for address := range tracker.index[req.FileHash] {
-		if address == req.PeerAddress {
-			continue
-		}
 
-		peerAddresses = append(peerAddresses, address)
+	i := 0
+	peerAddresses := make([]string, len(tracker.index[req.FileHash]))
+	for peerAddress := range tracker.index[req.FileHash] {
+		peerAddresses[i] = peerAddress
+		i++
 	}
-	tracker.mut.Unlock()
+
+	tracker.index[req.FileHash][req.PeerAddress] = time.Now()
 
 	return &AnnounceResponse{
 		PeerAddresses:    peerAddresses,

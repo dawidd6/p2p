@@ -1,7 +1,8 @@
 VERSION ?= $(shell git describe --tags 2>/dev/null || git rev-parse HEAD)
 
 build:
-	go build -ldflags "-s -w -X main.version=$(VERSION)"
+	@mkdir -p bin
+	go build -ldflags "-s -w -X github.com/dawidd6/p2p/pkg/version.Version=$(VERSION)" -o bin ./cmd/...
 
 test:
 	go test -v -count=1 ./...
