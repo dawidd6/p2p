@@ -243,9 +243,9 @@ func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, e
 	state = &State{
 		DownloadedPieces: 0,
 		Torrent:          req.Torrent,
-		Peers:            []string{},
+		PeerAddresses:    []string{},
 		AnnounceChannel:  make(chan struct{}),
-		AnnounceInterval: time.Second,
+		AnnounceInterval: defaults.TrackerAnnounceInterval,
 	}
 
 	daemon.torrents[req.Torrent.FileHash] = state
