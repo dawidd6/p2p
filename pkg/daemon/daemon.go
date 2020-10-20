@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dawidd6/p2p/pkg/defaults"
 	"github.com/dawidd6/p2p/pkg/hash"
 	"github.com/dawidd6/p2p/pkg/piece"
 
@@ -29,7 +30,7 @@ type State struct {
 	DownloadedPieces uint64
 	File             *os.File
 	Torrent          *torrent.Torrent
-	Peers            []string
+	PeerAddresses    []string
 	AnnounceInterval time.Duration
 	AnnounceChannel  chan struct{}
 }
@@ -97,7 +98,7 @@ func (daemon *Daemon) announce(state *State) error {
 		return err
 	}
 
-	state.Peers = response.PeerAddresses
+	state.PeerAddresses = response.PeerAddresses
 	state.AnnounceInterval = time.Duration(response.AnnounceInterval) * time.Second
 
 	return nil
@@ -140,7 +141,7 @@ func (daemon *Daemon) fetch(state *State) {
 	}
 
 	for {
-		if len(state.Peers) == 0 {
+		if len(state.PeerAddresses) == 0 {
 			log.Println("no peers available")
 			<-time.After(time.Second * 5)
 			continue
@@ -167,7 +168,7 @@ func (daemon *Daemon) fetch(state *State) {
 				continue
 			}
 
-			for _, peerAddr := range state.Peers {
+			for _, peerAddr := range state.PeerAddresses {
 				log.Println("Fetch", pieceNumber, pieceHash)
 
 				// TODO use DialContext everywhere
