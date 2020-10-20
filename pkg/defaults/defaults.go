@@ -14,5 +14,7 @@ const (
 	DaemonConnTimeout  = time.Second * 3
 	SeedConnTimeout    = time.Second * 2
 
+	MaxWorkers = 4
+
 	PieceSize = 256 * 1024 // 256 kB
 )

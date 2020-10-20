@@ -2,6 +2,10 @@ package piece
 
 import "io"
 
+func Offset(pieceSize, pieceNumber int64) int64 {
+	return pieceSize * pieceNumber
+}
+
 func Read(reader io.ReaderAt, pieceSize, pieceOffset int64) ([]byte, error) {
 	b := make([]byte, pieceSize)
 

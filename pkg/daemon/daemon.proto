@@ -3,6 +3,7 @@ syntax = "proto3";
 option go_package = "github.com/dawidd6/p2p/pkg/daemon";
 
 import "pkg/torrent/torrent.proto";
+import "pkg/state/state.proto";
 
 service Daemon {
     rpc Add (AddRequest) returns (AddResponse);
@@ -41,6 +42,6 @@ message StatusRequest {
 }
 
 message StatusResponse {
-    repeated Torrent torrents = 1;
+    map<string, State> torrents = 1;
 }
 

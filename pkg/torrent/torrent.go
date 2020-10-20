@@ -94,15 +94,18 @@ func Save(torrent *Torrent) error {
 }
 
 func Verify(torrent *Torrent, f *os.File) error {
+	h := hash.New()
+
 	for i, pieceHash := range torrent.PieceHashes {
 		pieceNumber := int64(i)
-		pieceOffset := torrent.PieceSize * pieceNumber
+		pieceOffset := piece.Offset(torrent.PieceSize, pieceNumber)
 		pieceData, err := piece.Read(f, torrent.PieceSize, pieceOffset)
 		if err != nil {
 			return err
 		}
 
-		if hash.Compute(pieceData) != pieceHash {
+		err = h.Verify(pieceData, pieceHash)
+		if err != nil {
 			return errors.PieceChecksumMismatchError
 		}
 	}

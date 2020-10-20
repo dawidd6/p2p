@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"hash"
+
+	"github.com/dawidd6/p2p/pkg/errors"
 )
 
 type Hash struct {
@@ -18,8 +20,17 @@ func (hash *Hash) HexSum() string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-// Compute computes SHA-256 sum of given bytes and returns hex representation of it.
-func Compute(b []byte) string {
-	checksum := sha256.Sum256(b)
-	return hex.EncodeToString(checksum[:])
+func (hash *Hash) Verify(b []byte, h string) error {
+	hash.Reset()
+
+	_, err := hash.Write(b)
+	if err != nil {
+		return err
+	}
+
+	if hash.HexSum() != h {
+		return errors.ChecksumMismatchError
+	}
+
+	return nil
 }

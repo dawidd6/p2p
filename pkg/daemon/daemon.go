@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dawidd6/p2p/pkg/state"
+
 	"github.com/dawidd6/p2p/pkg/defaults"
 	"github.com/dawidd6/p2p/pkg/hash"
 	"github.com/dawidd6/p2p/pkg/piece"
@@ -19,6 +21,7 @@ import (
 )
 
 type Config struct {
+	MaxWorkers        int
 	DownloadsDir      string
 	ListenAddress     string
 	SeedListenAddress string
@@ -27,9 +30,7 @@ type Config struct {
 type Task struct {
 	File             *os.File
 	Torrent          *torrent.Torrent
-	DownloadedBytes  uint64
-	UploadedBytes    uint64
-	Completed        bool
+	State            *state.State
 	PeerAddresses    []string
 	AnnounceInterval time.Duration
 }
@@ -150,71 +151,80 @@ func (daemon *Daemon) fetch(task *Task) {
 			continue
 		}
 
-		for i, pieceHash := range task.Torrent.PieceHashes {
+		wg := sync.WaitGroup{}
+		workers := make(chan struct{}, daemon.config.MaxWorkers)
+
+		for i := range task.Torrent.PieceHashes {
 			pieceNumber := int64(i)
-			pieceOffset := task.Torrent.PieceSize * pieceNumber
+			pieceHash := task.Torrent.PieceHashes[pieceNumber]
+			pieceOffset := piece.Offset(task.Torrent.PieceSize, pieceNumber)
 
-			// TODO, throttle for now
-			<-time.After(time.Second)
+			workers <- struct{}{}
+			wg.Add(1)
 
-			request := &SeedRequest{
-				FileHash:    task.Torrent.FileHash,
-				PieceNumber: pieceNumber,
-			}
+			go func() {
+				defer func() {
+					<-workers
+					wg.Done()
+				}()
 
-			pieceData, err := piece.Read(task.File, task.Torrent.PieceSize, pieceOffset)
-			if err != nil {
-				log.Println(err)
-			}
-
-			if hash.Compute(pieceData) == pieceHash {
-				log.Println(pieceHash, "already downloaded piece")
-				continue
-			}
-
-			for _, peerAddr := range task.PeerAddresses {
-				log.Println("Fetch", pieceNumber, pieceHash, peerAddr)
-
-				conn, err := grpc.Dial(peerAddr, grpc.WithInsecure())
+				pieceData, err := piece.Read(task.File, task.Torrent.PieceSize, pieceOffset)
 				if err != nil {
 					log.Println(err)
-					continue
 				}
 
-				client := NewSeederClient(conn)
-				response, err := client.Seed(context.Background(), request)
-				if err != nil {
-					log.Println(err)
-					continue
+				err = hash.New().Verify(pieceData, pieceHash)
+				if err == nil {
+					log.Println(pieceHash, "already downloaded piece")
+					return
 				}
 
-				err = conn.Close()
-				if err != nil {
-					log.Println(err)
-					continue
+				request := &SeedRequest{
+					FileHash:    task.Torrent.FileHash,
+					PieceNumber: pieceNumber,
 				}
 
-				// Peer does not have this piece, ask someone else
-				if response.PieceData == nil {
-					log.Println(peerAddr, "no piece")
-					continue
-				}
+				for _, peerAddr := range task.PeerAddresses {
+					log.Println("Fetch", pieceNumber, pieceHash, peerAddr)
 
-				// Got the piece wrongly, ask someone else
-				if hash.Compute(response.PieceData) != pieceHash {
-					log.Println(peerAddr, "wrong piece")
-					continue
-				}
+					conn, err := grpc.Dial(peerAddr, grpc.WithInsecure())
+					if err != nil {
+						log.Println(err)
+						continue
+					}
 
-				err = piece.Write(task.File, pieceOffset, response.PieceData)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
+					client := NewSeederClient(conn)
+					response, err := client.Seed(context.Background(), request)
+					if err != nil {
+						log.Println(err)
+						continue
+					}
 
-				break
-			}
+					err = conn.Close()
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+
+					// Got the piece wrongly, ask someone else
+					err = hash.New().Verify(response.PieceData, pieceHash)
+					if err != nil {
+						log.Println(peerAddr, "wrong piece")
+						continue
+					}
+
+					err = piece.Write(task.File, pieceOffset, response.PieceData)
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+
+					break
+				}
+			}()
 		}
+
+		wg.Wait()
 
 		err = torrent.Verify(task.Torrent, task.File)
 		if err != nil {
@@ -235,7 +245,7 @@ func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse
 		return nil, errors.TorrentNotFound
 	}
 
-	pieceOffset := task.Torrent.PieceSize * req.PieceNumber
+	pieceOffset := piece.Offset(task.Torrent.PieceSize, req.PieceNumber)
 	pieceData, err := piece.Read(task.File, task.Torrent.PieceSize, pieceOffset)
 	if err != nil {
 		return nil, err
@@ -294,13 +304,10 @@ func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteRe
 }
 
 func (daemon *Daemon) Status(ctx context.Context, req *StatusRequest) (*StatusResponse, error) {
-	i := 0
-
 	daemon.mutex.RLock()
-	torrents := make([]*torrent.Torrent, len(daemon.torrents))
+	torrents := make(map[string]*state.State, len(daemon.torrents))
 	for fileHash := range daemon.torrents {
-		torrents[i] = daemon.torrents[fileHash].Torrent
-		i++
+		torrents[fileHash] = daemon.torrents[fileHash].State
 	}
 	daemon.mutex.RUnlock()
 
