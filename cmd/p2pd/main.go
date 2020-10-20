@@ -30,6 +30,7 @@ func main() {
 	cmdRoot.Flags().StringVarP(&config.ListenAddress, "listen-address", "l", defaults.DaemonListenAddress, "Daemon listening address.")
 	cmdRoot.Flags().StringVarP(&config.SeedListenAddress, "seed-listen-address", "s", defaults.SeedListenAddress, "Seed listening address.")
 	cmdRoot.Flags().StringVarP(&config.DownloadsDir, "downloads-dir", "d", ".", "Where to place downloaded files.")
+	cmdRoot.Flags().IntVarP(&config.MaxWorkers, "max-workers", "w", defaults.MaxWorkers, "Max number of fetch workers.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/dawidd6/p2p/pkg/version"
 
@@ -34,12 +35,27 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			filePath := args[0]
 
-			t, err := torrent.Create(filePath, *pieceSize, *trackerAddr)
+			file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
 			if err != nil {
 				return err
 			}
 
-			return torrent.Save(t)
+			t, err := torrent.Create(file, *pieceSize, *trackerAddr)
+			if err != nil {
+				return err
+			}
+
+			err = torrent.Verify(t, file)
+			if err != nil {
+				return err
+			}
+
+			err = torrent.Save(t)
+			if err != nil {
+				return err
+			}
+
+			return file.Close()
 		},
 		Args: cobra.ExactArgs(1),
 	}
