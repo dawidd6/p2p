@@ -6,6 +6,8 @@ import "pkg/torrent/torrent.proto";
 
 service Daemon {
     rpc Add (AddRequest) returns (AddResponse);
+    rpc Delete (DeleteRequest) returns (DeleteResponse);
+    rpc Status (StatusRequest) returns (StatusResponse);
 }
 
 service Seeder {
@@ -14,7 +16,7 @@ service Seeder {
 
 message SeedRequest {
     string file_hash = 1;
-    uint64 piece_number = 2;
+    int64 piece_number = 2;
 }
 
 message SeedResponse {
@@ -25,7 +27,20 @@ message AddRequest {
     Torrent torrent = 1;
 }
 
-message AddResponse {
-    Torrent torrent = 1;
+message AddResponse {}
+
+message DeleteRequest {
+    string file_hash = 1;
+    bool with_data = 2;
+}
+
+message DeleteResponse {}
+
+message StatusRequest {
+    string file_hash = 1;
+}
+
+message StatusResponse {
+    repeated Torrent torrents = 1;
 }
 

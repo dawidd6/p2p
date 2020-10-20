@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/dawidd6/p2p/pkg/version"
@@ -59,31 +60,97 @@ var (
 				return err
 			}
 
-			request := &daemon.AddRequest{Torrent: t}
-			_, err = daemon.NewDaemonClient(conn).Add(context.TODO(), request)
+			request := &daemon.AddRequest{
+				Torrent: t,
+			}
+
+			client := daemon.NewDaemonClient(conn)
+			_, err = client.Add(context.Background(), request)
 			if err != nil {
 				return err
 			}
 
-			return nil
+			return conn.Close()
 		},
 		Args: cobra.ExactArgs(1),
 	}
 
+	cmdDelete = &cobra.Command{
+		Use:   "delete FILE_HASH",
+		Short: "Delete specified torrent from client by file hash.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fileHash := args[0]
+
+			conn, err := grpc.Dial(*daemonAddr, grpc.WithInsecure())
+			if err != nil {
+				return err
+			}
+
+			request := &daemon.DeleteRequest{
+				FileHash: fileHash,
+				WithData: *withData,
+			}
+
+			client := daemon.NewDaemonClient(conn)
+			_, err = client.Delete(context.Background(), request)
+			if err != nil {
+				return err
+			}
+
+			return conn.Close()
+		},
+		Args: cobra.ExactArgs(1),
+	}
+
+	cmdStatus = &cobra.Command{
+		Use:   "status [FILE_HASH]",
+		Short: "Get status of torrent(s) in progress.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fileHash := ""
+			if len(args) > 0 {
+				fileHash = args[0]
+			}
+
+			conn, err := grpc.Dial(*daemonAddr, grpc.WithInsecure())
+			if err != nil {
+				return err
+			}
+
+			request := &daemon.StatusRequest{
+				FileHash: fileHash,
+			}
+
+			client := daemon.NewDaemonClient(conn)
+			response, err := client.Status(context.Background(), request)
+			if err != nil {
+				return err
+			}
+
+			fmt.Println(response.Torrents)
+
+			return conn.Close()
+		},
+		Args: cobra.MaximumNArgs(1),
+	}
+
 	trackerAddr *string
+	pieceSize   *int64
 	daemonAddr  *string
-	pieceSize   *uint64
+	withData    *bool
 )
 
 func main() {
 	trackerAddr = cmdCreate.Flags().StringP("tracker-address", "t", defaults.TrackerListenAddress, "Tracker address.")
-	pieceSize = cmdCreate.Flags().Uint64P("piece-size", "s", defaults.PieceSize, "Piece size.")
+	pieceSize = cmdCreate.Flags().Int64P("piece-size", "s", defaults.PieceSize, "Piece size.")
 	daemonAddr = cmdAdd.Flags().StringP("listen-address", "l", defaults.DaemonListenAddress, "Daemon listening address.")
+	withData = cmdDelete.Flags().BoolP("with-data", "d", false, "Delete also downloaded data from disk.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 	cmdRoot.AddCommand(
 		cmdAdd,
 		cmdCreate,
+		cmdDelete,
+		cmdStatus,
 	)
 
 	err := cmdRoot.Execute()

@@ -11,6 +11,10 @@ func CreateDirectory(dir string) error {
 	return os.MkdirAll(dir, 0775)
 }
 
+func Remove(dir, fileName string) error {
+	return os.Remove(filepath.Join(dir, fileName))
+}
+
 func ReadAll(reader io.Reader) ([]byte, error) {
 	return ioutil.ReadAll(reader)
 }

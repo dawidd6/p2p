@@ -76,17 +76,22 @@ func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*An
 		tracker.index[req.FileHash] = make(map[string]time.Time)
 	}
 
+	tracker.index[req.FileHash][req.PeerAddress] = time.Now()
+
 	i := 0
-	peerAddresses := make([]string, len(tracker.index[req.FileHash]))
+	peerAddresses := make([]string, len(tracker.index[req.FileHash])-1)
 	for peerAddress := range tracker.index[req.FileHash] {
+		// Don't return announcing peer his own address
+		if peerAddress == req.PeerAddress {
+			continue
+		}
+
 		peerAddresses[i] = peerAddress
 		i++
 	}
 
-	tracker.index[req.FileHash][req.PeerAddress] = time.Now()
-
 	return &AnnounceResponse{
 		PeerAddresses:    peerAddresses,
-		AnnounceInterval: uint32(tracker.config.AnnounceInterval.Seconds()),
+		AnnounceInterval: tracker.config.AnnounceInterval.Milliseconds() / 1000,
 	}, nil
 }

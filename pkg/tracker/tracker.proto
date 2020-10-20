@@ -13,5 +13,5 @@ message AnnounceRequest {
 
 message AnnounceResponse {
     repeated string peer_addresses = 1;
-    uint32 announce_interval = 2;
+    int64 announce_interval = 2;
 }

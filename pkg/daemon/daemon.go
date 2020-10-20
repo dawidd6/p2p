@@ -26,31 +26,28 @@ type Config struct {
 	SeedListenAddress string
 }
 
-type State struct {
-	DownloadedPieces uint64
+type Task struct {
 	File             *os.File
 	Torrent          *torrent.Torrent
+	DownloadedBytes  uint64
+	UploadedBytes    uint64
+	Completed        bool
 	PeerAddresses    []string
 	AnnounceInterval time.Duration
-	AnnounceChannel  chan struct{}
 }
 
 type Daemon struct {
-	config      *Config
-	torrents    map[string]*State
-	mutex       sync.RWMutex
-	addChannel  chan *AddRequest
-	seedChannel chan *SeedRequest
+	config   *Config
+	torrents map[string]*Task
+	mutex    sync.RWMutex
 	UnimplementedDaemonServer
 	UnimplementedSeederServer
 }
 
 func Run(config *Config) error {
 	daemon := &Daemon{
-		config:      config,
-		torrents:    make(map[string]*State),
-		addChannel:  make(chan *AddRequest),
-		seedChannel: make(chan *SeedRequest, 5),
+		config:   config,
+		torrents: make(map[string]*Task),
 	}
 
 	channel := make(chan error)
@@ -82,83 +79,88 @@ func Run(config *Config) error {
 	return <-channel
 }
 
-func (daemon *Daemon) announce(state *State) error {
-	conn, err := grpc.Dial(state.Torrent.TrackerAddress, grpc.WithInsecure())
+func (daemon *Daemon) announce(task *Task) error {
+	conn, err := grpc.Dial(task.Torrent.TrackerAddress, grpc.WithInsecure())
 	if err != nil {
 		return err
 	}
 
 	request := &tracker.AnnounceRequest{
-		FileHash:    state.Torrent.FileHash,
+		FileHash:    task.Torrent.FileHash,
 		PeerAddress: daemon.config.SeedListenAddress,
 	}
 
-	response, err := tracker.NewTrackerClient(conn).Announce(context.Background(), request)
+	client := tracker.NewTrackerClient(conn)
+	response, err := client.Announce(context.Background(), request)
 	if err != nil {
 		return err
 	}
 
-	state.PeerAddresses = response.PeerAddresses
-	state.AnnounceInterval = time.Duration(response.AnnounceInterval) * time.Second
+	err = conn.Close()
+	if err != nil {
+		return err
+	}
+
+	task.PeerAddresses = response.PeerAddresses
+	task.AnnounceInterval = time.Duration(response.AnnounceInterval) * time.Second
 
 	return nil
 }
 
-func (daemon *Daemon) fetch(state *State) {
+func (daemon *Daemon) fetch(task *Task) {
 	err := file.CreateDirectory(daemon.config.DownloadsDir)
-
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	err = daemon.announce(state)
+	err = daemon.announce(task)
 	if err != nil {
 		log.Println(err)
 	}
 
 	go func() {
 		for {
+			// TODO break if deleted torrent
 			select {
-			case <-time.After(state.AnnounceInterval):
-				err = daemon.announce(state)
-			case <-state.AnnounceChannel:
-				break
+			case <-time.After(task.AnnounceInterval):
+				err = daemon.announce(task)
 			}
 		}
 	}()
 
-	state.File, err = file.Open(daemon.config.DownloadsDir, state.Torrent.FileName)
+	task.File, err = file.Open(daemon.config.DownloadsDir, task.Torrent.FileName)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	err = torrent.Verify(state.Torrent, daemon.config.DownloadsDir)
+	err = torrent.Verify(task.Torrent, task.File)
 	if err == nil {
 		log.Println("seeding")
 		return
 	}
 
 	for {
-		if len(state.PeerAddresses) == 0 {
+		if len(task.PeerAddresses) == 0 {
 			log.Println("no peers available")
-			<-time.After(time.Second * 5)
+			<-time.After(task.AnnounceInterval)
 			continue
 		}
 
-		for i, pieceHash := range state.Torrent.PieceHashes {
-			pieceNumber := uint64(i)
+		for i, pieceHash := range task.Torrent.PieceHashes {
+			pieceNumber := int64(i)
+			pieceOffset := task.Torrent.PieceSize * pieceNumber
 
 			// TODO, throttle for now
-			<-time.After(time.Second * 1)
+			<-time.After(time.Second)
 
 			request := &SeedRequest{
-				FileHash:    state.Torrent.FileHash,
+				FileHash:    task.Torrent.FileHash,
 				PieceNumber: pieceNumber,
 			}
 
-			pieceData, err := piece.Read(state.File, state.Torrent.PieceSize, pieceNumber)
+			pieceData, err := piece.Read(task.File, task.Torrent.PieceSize, pieceOffset)
 			if err != nil {
 				log.Println(err)
 			}
@@ -168,8 +170,8 @@ func (daemon *Daemon) fetch(state *State) {
 				continue
 			}
 
-			for _, peerAddr := range state.PeerAddresses {
-				log.Println("Fetch", pieceNumber, pieceHash)
+			for _, peerAddr := range task.PeerAddresses {
+				log.Println("Fetch", pieceNumber, pieceHash, peerAddr)
 
 				conn, err := grpc.Dial(peerAddr, grpc.WithInsecure())
 				if err != nil {
@@ -177,7 +179,14 @@ func (daemon *Daemon) fetch(state *State) {
 					continue
 				}
 
-				response, err := NewSeederClient(conn).Seed(context.TODO(), request)
+				client := NewSeederClient(conn)
+				response, err := client.Seed(context.Background(), request)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+
+				err = conn.Close()
 				if err != nil {
 					log.Println(err)
 					continue
@@ -195,15 +204,17 @@ func (daemon *Daemon) fetch(state *State) {
 					continue
 				}
 
-				err = piece.Write(state.File, pieceNumber, pieceData)
+				err = piece.Write(task.File, pieceOffset, response.PieceData)
 				if err != nil {
 					log.Println(err)
 					continue
 				}
+
+				break
 			}
 		}
 
-		err = torrent.Verify(state.Torrent, daemon.config.DownloadsDir)
+		err = torrent.Verify(task.Torrent, task.File)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -216,14 +227,14 @@ func (daemon *Daemon) fetch(state *State) {
 
 func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse, error) {
 	daemon.mutex.RLock()
-	defer daemon.mutex.RUnlock()
-
-	state, ok := daemon.torrents[req.FileHash]
+	task, ok := daemon.torrents[req.FileHash]
+	daemon.mutex.RUnlock()
 	if !ok {
 		return nil, errors.TorrentNotFound
 	}
 
-	pieceData, err := piece.Read(state.File, state.Torrent.PieceSize, req.PieceNumber)
+	pieceOffset := task.Torrent.PieceSize * req.PieceNumber
+	pieceData, err := piece.Read(task.File, task.Torrent.PieceSize, pieceOffset)
 	if err != nil {
 		return nil, err
 	}
@@ -232,24 +243,66 @@ func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse
 }
 
 func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, error) {
-	daemon.mutex.Lock()
-	defer daemon.mutex.Unlock()
-
-	state, ok := daemon.torrents[req.Torrent.FileHash]
+	daemon.mutex.RLock()
+	task, ok := daemon.torrents[req.Torrent.FileHash]
+	daemon.mutex.RUnlock()
 	if ok {
 		return nil, errors.TorrentAlreadyAdded
 	}
 
-	state = &State{
-		DownloadedPieces: 0,
+	task = &Task{
 		Torrent:          req.Torrent,
-		PeerAddresses:    []string{},
-		AnnounceChannel:  make(chan struct{}),
 		AnnounceInterval: defaults.TrackerAnnounceInterval,
 	}
 
-	daemon.torrents[req.Torrent.FileHash] = state
-	go daemon.fetch(state)
+	daemon.mutex.Lock()
+	daemon.torrents[req.Torrent.FileHash] = task
+	daemon.mutex.Unlock()
 
-	return &AddResponse{Torrent: req.Torrent}, nil
+	go daemon.fetch(task)
+
+	return &AddResponse{}, nil
+}
+
+func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteResponse, error) {
+	daemon.mutex.RLock()
+	task, ok := daemon.torrents[req.FileHash]
+	daemon.mutex.RUnlock()
+	if !ok {
+		return nil, errors.TorrentNotFound
+	}
+
+	daemon.mutex.Lock()
+	delete(daemon.torrents, req.FileHash)
+	daemon.mutex.Unlock()
+
+	err := task.File.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	if req.WithData {
+		err := file.Remove(daemon.config.DownloadsDir, task.Torrent.FileName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &DeleteResponse{}, nil
+}
+
+func (daemon *Daemon) Status(ctx context.Context, req *StatusRequest) (*StatusResponse, error) {
+	i := 0
+
+	daemon.mutex.RLock()
+	torrents := make([]*torrent.Torrent, len(daemon.torrents))
+	for fileHash := range daemon.torrents {
+		torrents[i] = daemon.torrents[fileHash].Torrent
+		i++
+	}
+	daemon.mutex.RUnlock()
+
+	return &StatusResponse{
+		Torrents: torrents,
+	}, nil
 }

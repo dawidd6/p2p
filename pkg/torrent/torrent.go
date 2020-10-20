@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -18,7 +19,7 @@ import (
 
 const FileExtension = "torrent.json"
 
-func Create(filePath string, pieceSize uint64, trackerAddr string) (*Torrent, error) {
+func Create(filePath string, pieceSize int64, trackerAddr string) (*Torrent, error) {
 	fileContent, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, err
@@ -46,7 +47,7 @@ func Create(filePath string, pieceSize uint64, trackerAddr string) (*Torrent, er
 	return &Torrent{
 		FileName:       filepath.Base(filePath),
 		FileHash:       hash.Compute(fileContent),
-		FileSize:       uint64(len(fileContent)),
+		FileSize:       int64(len(fileContent)),
 		PieceSize:      pieceSize,
 		PieceHashes:    pieceHashes,
 		TrackerAddress: trackerAddr,
@@ -84,10 +85,18 @@ func Save(torrent *Torrent) error {
 	return ioutil.WriteFile(filename, message, 0644)
 }
 
-func Verify(torrent *Torrent, dir string) error {
-	f, err := file.Open(dir, torrent.FileName)
-	if err != nil {
-		return err
+func Verify(torrent *Torrent, f *os.File) error {
+	for i, pieceHash := range torrent.PieceHashes {
+		pieceNumber := int64(i)
+		pieceOffset := torrent.PieceSize * pieceNumber
+		pieceData, err := piece.Read(f, torrent.PieceSize, pieceOffset)
+		if err != nil {
+			return err
+		}
+
+		if hash.Compute(pieceData) != pieceHash {
+			return errors.PieceChecksumMismatchError
+		}
 	}
 
 	fileContent, err := file.ReadAll(f)
@@ -97,17 +106,6 @@ func Verify(torrent *Torrent, dir string) error {
 
 	if hash.Compute(fileContent) != torrent.FileHash {
 		return errors.FileChecksumMismatchError
-	}
-
-	for i, pieceHash := range torrent.PieceHashes {
-		pieceData, err := piece.Read(f, torrent.PieceSize, uint64(i))
-		if err != nil {
-			return err
-		}
-
-		if hash.Compute(pieceData) != pieceHash {
-			return errors.PieceChecksumMismatchError
-		}
 	}
 
 	return nil
