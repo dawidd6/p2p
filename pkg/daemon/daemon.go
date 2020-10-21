@@ -159,10 +159,12 @@ func (daemon *Daemon) fetch(task *Task) {
 			pieceHash := task.Torrent.PieceHashes[pieceNumber]
 			pieceOffset := piece.Offset(task.Torrent.PieceSize, pieceNumber)
 
+			// Create worker, wait if max count already
 			workers <- struct{}{}
 			wg.Add(1)
 
 			go func() {
+				// Report that work is done
 				defer func() {
 					<-workers
 					wg.Done()
@@ -224,6 +226,7 @@ func (daemon *Daemon) fetch(task *Task) {
 			}()
 		}
 
+		// Wait for all workers to finish
 		wg.Wait()
 
 		err = torrent.Verify(task.Torrent, task.File)
