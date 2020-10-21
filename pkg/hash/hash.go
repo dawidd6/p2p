@@ -3,9 +3,12 @@ package hash
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"hash"
+)
 
-	"github.com/dawidd6/p2p/pkg/errors"
+var (
+	ChecksumMismatchError = errors.New("checksum mismatch")
 )
 
 type Hash struct {
@@ -22,14 +25,10 @@ func (hash *Hash) HexSum() string {
 
 func (hash *Hash) Verify(b []byte, h string) error {
 	hash.Reset()
-
-	_, err := hash.Write(b)
-	if err != nil {
-		return err
-	}
+	hash.Write(b)
 
 	if hash.HexSum() != h {
-		return errors.ChecksumMismatchError
+		return ChecksumMismatchError
 	}
 
 	return nil

@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 
-	"github.com/dawidd6/p2p/pkg/defaults"
 	"github.com/dawidd6/p2p/pkg/version"
 
 	"github.com/dawidd6/p2p/pkg/daemon"
@@ -27,10 +26,10 @@ var (
 )
 
 func main() {
-	cmdRoot.Flags().StringVarP(&config.ListenAddress, "listen-address", "l", defaults.DaemonListenAddress, "Daemon listening address.")
-	cmdRoot.Flags().StringVarP(&config.SeedListenAddress, "seed-listen-address", "s", defaults.SeedListenAddress, "Seed listening address.")
-	cmdRoot.Flags().StringVarP(&config.DownloadsDir, "downloads-dir", "d", ".", "Where to place downloaded files.")
-	cmdRoot.Flags().IntVarP(&config.MaxWorkers, "max-workers", "w", defaults.MaxWorkers, "Max number of fetch workers.")
+	cmdRoot.Flags().StringVarP(&config.ListenAddress, "listen-address", "l", daemon.ListenAddress, "Daemon listening address.")
+	cmdRoot.Flags().StringVarP(&config.SeedListenAddress, "seed-listen-address", "s", daemon.SeedListenAddress, "Seed listening address.")
+	cmdRoot.Flags().StringVarP(&config.DownloadsDir, "downloads-dir", "d", daemon.DownloadsDir, "Where to place downloaded files.")
+	cmdRoot.Flags().IntVarP(&config.MaxFetchingWorkers, "max-fetch-workers", "w", daemon.MaxFetchingWorkers, "Max number of fetch workers.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 

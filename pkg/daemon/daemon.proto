@@ -9,6 +9,8 @@ service Daemon {
     rpc Add (AddRequest) returns (AddResponse);
     rpc Delete (DeleteRequest) returns (DeleteResponse);
     rpc Status (StatusRequest) returns (StatusResponse);
+    rpc Resume (ResumeRequest) returns (ResumeResponse);
+    rpc Pause (PauseRequest) returns (PauseResponse);
 }
 
 service Seeder {
@@ -43,5 +45,19 @@ message StatusRequest {
 
 message StatusResponse {
     map<string, State> torrents = 1;
+}
+
+message ResumeRequest {
+    string file_hash = 1;
+}
+
+message ResumeResponse {
+}
+
+message PauseRequest {
+    string file_hash = 1;
+}
+
+message PauseResponse {
 }
 

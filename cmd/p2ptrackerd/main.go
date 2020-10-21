@@ -5,8 +5,6 @@ import (
 
 	"github.com/dawidd6/p2p/pkg/version"
 
-	"github.com/dawidd6/p2p/pkg/defaults"
-
 	"github.com/dawidd6/p2p/pkg/tracker"
 
 	"github.com/spf13/cobra"
@@ -29,9 +27,9 @@ var (
 )
 
 func main() {
-	cmdRoot.Flags().StringVarP(&config.ListenAddress, "listen-address", "l", defaults.TrackerListenAddress, "Tracker listening address.")
-	cmdRoot.Flags().DurationVarP(&config.AnnounceInterval, "announce-interval", "n", defaults.TrackerAnnounceInterval, "Tracker announcing interval.")
-	cmdRoot.Flags().DurationVarP(&config.CleanInterval, "clean-interval", "c", defaults.TrackerCleanInterval, "Tracker dangling peers cleaning interval.")
+	cmdRoot.Flags().StringVarP(&config.ListenAddress, "listen-address", "l", tracker.ListenAddress, "Tracker listening address.")
+	cmdRoot.Flags().DurationVarP(&config.AnnounceInterval, "announce-interval", "n", tracker.AnnounceInterval, "Tracker announcing interval.")
+	cmdRoot.Flags().DurationVarP(&config.CleanInterval, "clean-interval", "c", tracker.CleanInterval, "Tracker dangling peers cleaning interval.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 

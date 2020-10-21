@@ -6,9 +6,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/dawidd6/p2p/pkg/version"
+	"github.com/dawidd6/p2p/pkg/piece"
+	"github.com/dawidd6/p2p/pkg/tracker"
 
-	"github.com/dawidd6/p2p/pkg/defaults"
+	"github.com/dawidd6/p2p/pkg/version"
 
 	"github.com/dawidd6/p2p/pkg/daemon"
 	"github.com/dawidd6/p2p/pkg/torrent"
@@ -156,9 +157,9 @@ var (
 )
 
 func main() {
-	trackerAddr = cmdCreate.Flags().StringP("tracker-address", "t", defaults.TrackerListenAddress, "Tracker address.")
-	pieceSize = cmdCreate.Flags().Int64P("piece-size", "s", defaults.PieceSize, "Piece size.")
-	daemonAddr = cmdAdd.Flags().StringP("listen-address", "l", defaults.DaemonListenAddress, "Daemon listening address.")
+	trackerAddr = cmdCreate.Flags().StringP("tracker-address", "t", tracker.ListenAddress, "Tracker address.")
+	pieceSize = cmdCreate.Flags().Int64P("piece-size", "s", piece.Size, "Piece size.")
+	daemonAddr = cmdAdd.Flags().StringP("listen-address", "l", daemon.ListenAddress, "Daemon listening address.")
 	withData = cmdDelete.Flags().BoolP("with-data", "d", false, "Delete also downloaded data from disk.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})

@@ -2,6 +2,7 @@ package torrent
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,11 +11,13 @@ import (
 
 	"github.com/dawidd6/p2p/pkg/hash"
 	"github.com/dawidd6/p2p/pkg/piece"
-
-	"github.com/dawidd6/p2p/pkg/errors"
 )
 
 const FileExtension = "torrent.json"
+
+var (
+	WrongExtensionError = errors.New("wrong torrent file extension")
+)
 
 func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error) {
 	info, err := file.Stat()
@@ -22,8 +25,8 @@ func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error
 		return nil, err
 	}
 
-	fileHash := hash.New()
-	pieceHash := hash.New()
+	fileHasher := hash.New()
+	pieceHasher := hash.New()
 	pieceHashes := make([]string, 0)
 
 	for {
@@ -38,23 +41,23 @@ func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error
 		}
 		pieceData = pieceData[:n]
 
-		n, err = fileHash.Write(pieceData)
+		n, err = fileHasher.Write(pieceData)
 		if err != nil {
 			return nil, err
 		}
 
-		n, err = pieceHash.Write(pieceData)
+		n, err = pieceHasher.Write(pieceData)
 		if err != nil {
 			return nil, err
 		}
 
-		pieceHashes = append(pieceHashes, pieceHash.HexSum())
-		pieceHash.Reset()
+		pieceHashes = append(pieceHashes, pieceHasher.HexSum())
+		pieceHasher.Reset()
 	}
 
 	return &Torrent{
 		FileName:       file.Name(),
-		FileHash:       fileHash.HexSum(),
+		FileHash:       fileHasher.HexSum(),
 		FileSize:       info.Size(),
 		PieceSize:      pieceSize,
 		PieceHashes:    pieceHashes,
@@ -64,7 +67,7 @@ func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error
 
 func Load(filePath string) (*Torrent, error) {
 	if !strings.HasSuffix(filePath, FileExtension) {
-		return nil, errors.WrongTorrentExtensionError
+		return nil, WrongExtensionError
 	}
 
 	b, err := ioutil.ReadFile(filePath)
@@ -94,7 +97,7 @@ func Save(torrent *Torrent) error {
 }
 
 func Verify(torrent *Torrent, f *os.File) error {
-	h := hash.New()
+	hasher := hash.New()
 
 	for i, pieceHash := range torrent.PieceHashes {
 		pieceNumber := int64(i)
@@ -104,9 +107,9 @@ func Verify(torrent *Torrent, f *os.File) error {
 			return err
 		}
 
-		err = h.Verify(pieceData, pieceHash)
+		err = hasher.Verify(pieceData, pieceHash)
 		if err != nil {
-			return errors.PieceChecksumMismatchError
+			return err
 		}
 	}
 

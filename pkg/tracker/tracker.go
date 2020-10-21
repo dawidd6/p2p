@@ -7,9 +7,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dawidd6/p2p/pkg/defaults"
-
 	"google.golang.org/grpc"
+)
+
+const (
+	ListenAddress    = "127.0.0.1:8889"
+	AnnounceInterval = time.Second * 30
+	CleanInterval    = time.Second * 60
+	CleanTolerance   = time.Second * 10
+	ConnTimeout      = time.Second * 5
 )
 
 type Config struct {
@@ -19,65 +25,65 @@ type Config struct {
 }
 
 type Tracker struct {
-	config *Config
-	index  map[string]map[string]time.Time
-	mutex  sync.Mutex
+	config  *Config
+	index   map[string]map[string]time.Time // fileHash peerAddress peerTimestamp
+	mutex   sync.RWMutex
+	cleaner *time.Ticker
 	UnimplementedTrackerServer
 }
 
 func Run(config *Config) error {
 	tracker := &Tracker{
-		config: config,
-		index:  make(map[string]map[string]time.Time),
+		config:  config,
+		index:   make(map[string]map[string]time.Time),
+		cleaner: time.NewTicker(config.CleanInterval),
 	}
 
-	go func() {
-		for {
-			<-time.After(config.CleanInterval)
-			tracker.clean()
-		}
-	}()
+	go tracker.clean()
 
 	listener, err := net.Listen("tcp", config.ListenAddress)
 	if err != nil {
 		return err
 	}
 
-	server := grpc.NewServer(grpc.ConnectionTimeout(defaults.TrackerConnTimeout))
+	server := grpc.NewServer(grpc.ConnectionTimeout(ConnTimeout))
 	RegisterTrackerServer(server, tracker)
 	return server.Serve(listener)
 }
 
 func (tracker *Tracker) clean() {
-	tracker.mutex.Lock()
-	defer tracker.mutex.Unlock()
-
-	for fileHash := range tracker.index {
-		for peerAddress, peerTimestamp := range tracker.index[fileHash] {
-			if time.Since(peerTimestamp) > tracker.config.AnnounceInterval*2 {
-				log.Println("Clean", fileHash, peerAddress)
-				delete(tracker.index[fileHash], peerAddress)
-			}
-			if len(tracker.index[fileHash]) == 0 {
-				log.Println("Clean", fileHash)
-				delete(tracker.index, fileHash)
+	for range tracker.cleaner.C {
+		tracker.mutex.Lock()
+		for fileHash := range tracker.index {
+			for peerAddress, peerTimestamp := range tracker.index[fileHash] {
+				if time.Since(peerTimestamp) > tracker.config.AnnounceInterval+CleanTolerance {
+					log.Println("clean", fileHash, peerAddress)
+					delete(tracker.index[fileHash], peerAddress)
+				}
+				if len(tracker.index[fileHash]) == 0 {
+					log.Println("clean", fileHash)
+					delete(tracker.index, fileHash)
+				}
 			}
 		}
+		tracker.mutex.Unlock()
 	}
 }
 
 func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*AnnounceResponse, error) {
-	log.Println("Announce", req.PeerAddress)
+	log.Println("Announce", req.FileHash, req.PeerAddress)
 
 	tracker.mutex.Lock()
-	defer tracker.mutex.Unlock()
-
 	if _, ok := tracker.index[req.FileHash]; !ok {
 		tracker.index[req.FileHash] = make(map[string]time.Time)
 	}
+	tracker.mutex.Unlock()
 
+	tracker.mutex.Lock()
 	tracker.index[req.FileHash][req.PeerAddress] = time.Now()
+	tracker.mutex.Unlock()
 
+	tracker.mutex.RLock()
 	i := 0
 	peerAddresses := make([]string, len(tracker.index[req.FileHash])-1)
 	for peerAddress := range tracker.index[req.FileHash] {
@@ -89,6 +95,7 @@ func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*An
 		peerAddresses[i] = peerAddress
 		i++
 	}
+	tracker.mutex.RUnlock()
 
 	return &AnnounceResponse{
 		PeerAddresses:    peerAddresses,

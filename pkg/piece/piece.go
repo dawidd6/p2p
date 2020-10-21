@@ -2,6 +2,8 @@ package piece
 
 import "io"
 
+const Size = 256 * 1024 // 256 kB
+
 func Offset(pieceSize, pieceNumber int64) int64 {
 	return pieceSize * pieceNumber
 }
