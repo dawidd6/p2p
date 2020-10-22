@@ -2,16 +2,6 @@
   hosts: all
   become: yes
   tasks:
-    - name: Install Docker
-      apt:
-        name:
-          - docker.io
-          - python3-docker
-    - name: Start Docker
-      systemd:
-        name: docker
-        enabled: yes
-        state: started
     - name: Login to registry
       docker_login:
         registry_url: docker.pkg.github.com
