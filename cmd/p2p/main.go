@@ -119,6 +119,58 @@ var (
 		Args: cobra.ExactArgs(1),
 	}
 
+	cmdPause = &cobra.Command{
+		Use:   "pause FILE_HASH",
+		Short: "Pause specified torrent by file hash.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fileHash := args[0]
+
+			conn, err := grpc.Dial(*daemonAddr, grpc.WithInsecure())
+			if err != nil {
+				return err
+			}
+
+			request := &daemon.PauseRequest{
+				FileHash: fileHash,
+			}
+
+			client := daemon.NewDaemonClient(conn)
+			_, err = client.Pause(context.Background(), request)
+			if err != nil {
+				return err
+			}
+
+			return conn.Close()
+		},
+		Args: cobra.ExactArgs(1),
+	}
+
+	cmdResume = &cobra.Command{
+		Use:   "resume FILE_HASH",
+		Short: "Resume specified torrent by file hash.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fileHash := args[0]
+
+			conn, err := grpc.Dial(*daemonAddr, grpc.WithInsecure())
+			if err != nil {
+				return err
+			}
+
+			request := &daemon.ResumeRequest{
+				FileHash: fileHash,
+			}
+
+			client := daemon.NewDaemonClient(conn)
+			_, err = client.Resume(context.Background(), request)
+			if err != nil {
+				return err
+			}
+
+			return conn.Close()
+		},
+		Args: cobra.ExactArgs(1),
+	}
+
 	cmdStatus = &cobra.Command{
 		Use:   "status [FILE_HASH]",
 		Short: "Get status of torrent(s) in progress.",
@@ -143,7 +195,24 @@ var (
 				return err
 			}
 
-			fmt.Println(response.Torrents)
+			fmt.Printf("%-64v  %-6v  %-9v  %-16v  %-16v  %-5v\n",
+				"FILE_HASH",
+				"PAUSED",
+				"COMPLETED",
+				"DOWNLOADED_BYTES",
+				"UPLOADED_BYTES",
+				"RATIO",
+			)
+			for fileHash, torrentState := range response.Torrents {
+				fmt.Printf("%-64v  %-6v  %-9v  %-16v  %-16v  %-5.2f\n",
+					fileHash,
+					torrentState.Paused,
+					torrentState.Completed,
+					torrentState.DownloadedBytes,
+					torrentState.UploadedBytes,
+					float32(torrentState.UploadedBytes)/float32(torrentState.DownloadedBytes),
+				)
+			}
 
 			return conn.Close()
 		},
@@ -157,9 +226,9 @@ var (
 )
 
 func main() {
+	daemonAddr = cmdRoot.PersistentFlags().StringP("listen-address", "l", daemon.ListenAddress, "Daemon listening address.")
 	trackerAddr = cmdCreate.Flags().StringP("tracker-address", "t", tracker.ListenAddress, "Tracker address.")
 	pieceSize = cmdCreate.Flags().Int64P("piece-size", "s", piece.Size, "Piece size.")
-	daemonAddr = cmdAdd.Flags().StringP("listen-address", "l", daemon.ListenAddress, "Daemon listening address.")
 	withData = cmdDelete.Flags().BoolP("with-data", "d", false, "Delete also downloaded data from disk.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
@@ -167,6 +236,8 @@ func main() {
 		cmdAdd,
 		cmdCreate,
 		cmdDelete,
+		cmdPause,
+		cmdResume,
 		cmdStatus,
 	)
 

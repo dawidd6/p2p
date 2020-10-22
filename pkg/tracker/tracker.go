@@ -14,7 +14,6 @@ const (
 	ListenAddress    = "127.0.0.1:8889"
 	AnnounceInterval = time.Second * 30
 	CleanInterval    = time.Second * 60
-	CleanTolerance   = time.Second * 10
 	ConnTimeout      = time.Second * 5
 )
 
@@ -56,7 +55,7 @@ func (tracker *Tracker) clean() {
 		tracker.mutex.Lock()
 		for fileHash := range tracker.index {
 			for peerAddress, peerTimestamp := range tracker.index[fileHash] {
-				if time.Since(peerTimestamp) > tracker.config.AnnounceInterval+CleanTolerance {
+				if time.Since(peerTimestamp) > tracker.config.AnnounceInterval*2 {
 					log.Println("clean", fileHash, peerAddress)
 					delete(tracker.index[fileHash], peerAddress)
 				}

@@ -6,4 +6,5 @@ message State {
     int64 downloaded_bytes = 1;
     int64 uploaded_bytes = 2;
     bool completed = 3;
+    bool paused = 4;
 }
