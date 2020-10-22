@@ -1,0 +1,15 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  cd-tracker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish Image
+        uses: matootie/github-docker@v3.1.0
+        with:
+          accessToken: ${{github.token}}
