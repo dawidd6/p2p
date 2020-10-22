@@ -5,7 +5,7 @@ RUN apk -U add make git
 RUN make
 
 FROM alpine:3
-COPY --from=builder /app/bin/* /bin
+COPY --from=builder /app/bin/* /bin/
 RUN addgroup -S p2p && adduser -S p2p -G p2p
 USER p2p
 CMD ["p2p"]
