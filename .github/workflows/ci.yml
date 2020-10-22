@@ -63,9 +63,9 @@ jobs:
 
           # Add torrents
           docker run --network p2p-network -v $PWD:$PWD -w $PWD -t $IMG \
-            p2p add -p 8881 go.sum.torrent.json
+            p2p add -l daemon-seed -p 8881 go.sum.torrent.json
           docker run --network p2p-network -v $PWD:$PWD -w $PWD -t $IMG \
-            p2p add -p 8882 go.sum.torrent.json
+            p2p add -l daemon-leech -p 8882 go.sum.torrent.json
 
           # Wait some time
           sleep 5s
