@@ -44,23 +44,34 @@ jobs:
         env:
           IMG: p2p
         run: |
+          # Create network
+          docker network create p2p-network
+
           # Create torrent
-          docker run -v $PWD:$PWD -w $PWD -t $IMG p2p create -s 4096 go.sum
+          docker run -v $PWD:$PWD -w $PWD -t $IMG \
+            p2p create -s 4096 go.sum
 
           # Start tracker
-          docker run -p 8889:8889 --name tracker -d $IMG p2ptrackerd
+          docker run --network p2p-network --name tracker -d $IMG \
+            p2ptrackerd -p 8889
 
           # Start daemons
-          docker run -p 8881:8881 -p 44441:44441 --name daemon-seed -d -v $PWD:$PWD -w $PWD $IMG p2pd -p 8881 -P 44441
-          docker run -p 8882:8882 -p 44442:44442 --name daemon-leech -d $IMG p2pd -p 8882 -P 44442
+          docker run --network p2p-network --name daemon-seed -d -v $PWD:$PWD -w $PWD $IMG \
+            p2pd -p 8881 -P 44441
+          docker run --network p2p-network --name daemon-leech -d $IMG \
+            p2pd -p 8882 -P 44442
 
           # Add torrents
-          docker run -v $PWD:$PWD -w $PWD -t $IMG p2p add -p 8881 go.sum.torrent.json
-          docker run -v $PWD:$PWD -w $PWD -t $IMG p2p add -p 8882 go.sum.torrent.json
+          docker run --network p2p-network -v $PWD:$PWD -w $PWD -t $IMG \
+            p2p add -p 8881 go.sum.torrent.json
+          docker run --network p2p-network -v $PWD:$PWD -w $PWD -t $IMG \
+            p2p add -p 8882 go.sum.torrent.json
 
           # Wait some time
           sleep 5s
 
           # Get statuses
-          docker run -t $IMG p2p status -p 8881
-          docker run -t $IMG p2p status -p 8882
+          docker run --network p2p-network -t $IMG \
+            p2p status -p 8881
+          docker run --network p2p-network -t $IMG \
+            p2p status -p 8882
