@@ -81,3 +81,8 @@ jobs:
             p2p status -p 8881
           docker exec -t daemon-leech \
             p2p status  -p 8882
+
+          # Print logs
+          docker logs tracker
+          docker logs daemon-seed
+          docker logs daemon-leech
