@@ -1,0 +1,39 @@
+- name: Deploy tracker
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install Docker
+      apt:
+        name:
+          - docker.io
+          - python3-docker
+    - name: Start Docker
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+    - name: Login to registry
+      docker_login:
+        registry_url: docker.pkg.github.com
+        username: "{{ docker_username }}"
+        password: "{{ docker_password }}"
+    - name: Allow port
+      ufw:
+        rule: allow
+        port: 8889
+        proto: tcp
+    - name: Start tracker
+      docker_container:
+        name: p2ptrackerd
+        image: "{{ docker_image }}"
+        cleanup: yes
+        recreate: yes
+        pull: yes
+        restart_policy: always
+        ports:
+          - 8889:8889
+        command: p2ptrackerd -p 8889
+    - name: Prune Docker leftovers
+      docker_prune:
+        images: yes
+        containers: yes
