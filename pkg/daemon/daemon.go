@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"math/rand"
 	"net"
 	"os"
 	"sync"
@@ -23,12 +22,14 @@ import (
 )
 
 const (
-	ListenAddress      = "127.0.0.1:8888"
-	SeedListenAddress  = "0.0.0.0:44444"
-	ConnTimeout        = time.Second * 3
-	SeedConnTimeout    = time.Second * 2
-	DownloadsDir       = "."
-	MaxFetchingWorkers = 4
+	ListenAddress         = "127.0.0.1:8888"
+	SeedListenAddress     = "0.0.0.0:44444"
+	ConnTimeout           = time.Second * 3
+	SeedConnTimeout       = time.Second * 2
+	DownloadsDir          = "."
+	MaxFetchingWorkers    = 4
+	MaxSeedingConnections = 4
+	MaxPeerFailures       = 4
 )
 
 var (
@@ -36,6 +37,7 @@ var (
 	TorrentAlreadyAddedError   = errors.New("torrent is already added")
 	TorrentAlreadyPausedError  = errors.New("torrent is already paused")
 	TorrentAlreadyResumedError = errors.New("torrent is already resumed")
+	TorrentPausedError         = errors.New("torrent is paused")
 )
 
 type Config struct {
@@ -54,10 +56,9 @@ type Task struct {
 	PauseNotifier  chan struct{}
 	DeleteNotifier chan struct{}
 
-	PeersNotifier   chan struct{}
-	PeersMutex      sync.Mutex
-	Peers           []string
-	PeersRandomizer *rand.Rand
+	PeersNotifier chan struct{}
+	PeersMutex    sync.Mutex
+	Peers         map[string]int
 
 	AnnounceTicker   *time.Ticker
 	AnnounceInterval time.Duration
@@ -66,17 +67,19 @@ type Task struct {
 }
 
 type Daemon struct {
-	config   *Config
-	torrents map[string]*Task
-	mutex    sync.RWMutex
+	config     *Config
+	torrents   map[string]*Task
+	mutex      sync.RWMutex
+	seedWaiter chan struct{}
 	UnimplementedDaemonServer
 	UnimplementedSeederServer
 }
 
 func Run(config *Config) error {
 	daemon := &Daemon{
-		config:   config,
-		torrents: make(map[string]*Task),
+		config:     config,
+		torrents:   make(map[string]*Task),
+		seedWaiter: make(chan struct{}, MaxSeedingConnections),
 	}
 
 	err := os.MkdirAll(config.DownloadsDir, 0775)
@@ -112,6 +115,7 @@ func Run(config *Config) error {
 
 		server := grpc.NewServer(
 			grpc.ConnectionTimeout(SeedConnTimeout),
+			grpc.UnaryInterceptor(daemon.seed),
 		)
 		RegisterSeederServer(server, daemon)
 		channel <- server.Serve(listener)
@@ -145,18 +149,23 @@ func (daemon *Daemon) announce(task *Task) error {
 		return err
 	}
 
-	// Set peer addresses and notify about that fact
+	// Set peer addresses
 	task.PeersMutex.Lock()
-	task.Peers = response.PeerAddresses
+	task.Peers = make(map[string]int, len(response.PeerAddresses))
+	for _, peerAddr := range response.PeerAddresses {
+		task.Peers[peerAddr] = 0
+	}
 	if len(task.PeersNotifier) == 1 {
 		log.Println("announce", "draining channel")
 		<-task.PeersNotifier
 		log.Println("announce", "channel drained")
 	}
+	task.PeersMutex.Unlock()
+
+	// Notify about new peer list
 	log.Println("announce", "notifying")
 	task.PeersNotifier <- struct{}{}
 	log.Println("announce", "notified")
-	task.PeersMutex.Unlock()
 
 	// Set announcing interval if changed and reset the ticker
 	announceInterval := time.Duration(response.AnnounceInterval) * time.Second
@@ -237,6 +246,25 @@ func (daemon *Daemon) fetch(task *Task, pieceNumber int64, pieceHash string, pie
 	return nil
 }
 
+func (daemon *Daemon) peer(task *Task) string {
+	for {
+		task.PeersMutex.Lock()
+		for peerAddr, peerFailures := range task.Peers {
+			// If number of failures does not exceed the max, then return this peer address
+			if peerFailures < MaxPeerFailures {
+				task.PeersMutex.Unlock()
+				return peerAddr
+			}
+		}
+		task.PeersMutex.Unlock()
+
+		log.Println("fetch", "waiting for peers")
+		// No good peer were found, wait for new list from tracker
+		<-task.PeersNotifier
+		log.Println("fetch", "got new peers")
+	}
+}
+
 func (daemon *Daemon) fetching(task *Task) {
 	log.Println("add")
 
@@ -285,28 +313,17 @@ func (daemon *Daemon) fetching(task *Task) {
 			}
 
 			// Get random peer address, wait if no peers available
-			peerAddr := ""
-			for {
-				task.PeersMutex.Lock()
-				peers := len(task.Peers)
-				if peers > 0 {
-					peer := task.PeersRandomizer.Intn(peers)
-					peerAddr = task.Peers[peer]
-					task.PeersMutex.Unlock()
-					log.Println("fetch", "peer", peerAddr)
-					break
-				}
-				task.PeersMutex.Unlock()
-				log.Println("fetch", "waiting for peers")
-				<-task.PeersNotifier
-				log.Println("fetch", "got new peers")
-			}
+			peerAddr := daemon.peer(task)
 
 			// Create worker, wait if max count already
 			task.WorkerPool.Enqueue(func() {
 				// Fetch one piece
 				err := daemon.fetch(task, pieceNumber, pieceHash, pieceOffset, peerAddr)
 				if err != nil {
+					// Add peer failure
+					task.PeersMutex.Lock()
+					task.Peers[peerAddr]++
+					task.PeersMutex.Unlock()
 					log.Println(err)
 				}
 			})
@@ -329,6 +346,14 @@ func (daemon *Daemon) fetching(task *Task) {
 	}
 }
 
+func (daemon *Daemon) seed(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	// Allow only N seed connections at the time
+	daemon.seedWaiter <- struct{}{}
+	res, err := handler(ctx, req)
+	<-daemon.seedWaiter
+	return res, err
+}
+
 func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse, error) {
 	// Check if torrent is present in queue
 	daemon.mutex.RLock()
@@ -340,7 +365,7 @@ func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse
 
 	// Return early if torrent is paused
 	if task.State.Paused {
-		return nil, nil
+		return nil, TorrentPausedError
 	}
 
 	// Read piece
@@ -371,7 +396,6 @@ func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, e
 		State:            &state.State{},
 		AnnounceInterval: tracker.AnnounceInterval,
 		AnnounceTicker:   time.NewTicker(tracker.AnnounceInterval),
-		PeersRandomizer:  rand.New(rand.NewSource(time.Now().Unix())),
 		WorkerPool:       worker.New(daemon.config.MaxFetchingWorkers),
 		PeersNotifier:    make(chan struct{}, 1),
 		PauseNotifier:    make(chan struct{}),
@@ -408,7 +432,9 @@ func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteRe
 	daemon.mutex.Unlock()
 
 	// Notify deletion, so we can exit the fetching loop
-	task.DeleteNotifier <- struct{}{}
+	if !task.State.Completed {
+		task.DeleteNotifier <- struct{}{}
+	}
 
 	// Stop announcing torrent to tracker
 	task.AnnounceTicker.Stop()
@@ -483,7 +509,9 @@ func (daemon *Daemon) Resume(ctx context.Context, req *ResumeRequest) (*ResumeRe
 
 	// Resume torrent
 	task.State.Paused = false
-	task.ResumeNotifier <- struct{}{}
+	if !task.State.Completed {
+		task.ResumeNotifier <- struct{}{}
+	}
 
 	// Return to client
 	return &ResumeResponse{}, nil
@@ -505,7 +533,9 @@ func (daemon *Daemon) Pause(ctx context.Context, req *PauseRequest) (*PauseRespo
 
 	// Pause torrent
 	task.State.Paused = true
-	task.PauseNotifier <- struct{}{}
+	if !task.State.Completed {
+		task.PauseNotifier <- struct{}{}
+	}
 
 	// Return to client
 	return &PauseResponse{}, nil
