@@ -53,34 +53,31 @@ jobs:
 
           # Start tracker
           docker run --network p2p-network --name tracker -d $IMG \
-            p2ptrackerd -p 8889
+            p2ptrackerd -l 0.0.0.0 -p 8889
 
           # Start daemons
           docker run --network p2p-network --name daemon-seed -v $PWD:$PWD -w $PWD -d $IMG \
-            p2pd -p 8881 -P 44441
+            p2pd -l 0.0.0.0 -p 8881 -P 44441
           docker run --network p2p-network --name daemon-leech -w $PWD -d $IMG \
-            p2pd -p 8882 -P 44442
+            p2pd -l 0.0.0.0 -p 8882 -P 44442
 
           # Wait some time
           sleep 5s
 
-          # Copy torrent file
-          docker cp go.sum.torrent.json daemon-leech:$PWD
-
           # Add torrents
-          docker exec -t daemon-seed \
-            p2p add -p 8881 go.sum.torrent.json
-          docker exec -t daemon-leech \
-            p2p add -p 8882 go.sum.torrent.json
+          docker run --network p2p-network -v $PWD:$PWD -w $PWD -t $IMG \
+            p2p add -l daemon-seed -p 8881 go.sum.torrent.json
+          docker run --network p2p-network -v $PWD:$PWD -w $PWD -t $IMG \
+            p2p add -l daemon-leech -p 8882 go.sum.torrent.json
 
           # Wait some time
           sleep 10s
 
           # Get statuses
-          docker exec -t daemon-seed \
-            p2p status -p 8881
-          docker exec -t daemon-leech \
-            p2p status  -p 8882
+          docker run --network p2p-network -v $PWD:$PWD -w $PWD -t $IMG \
+            p2p status -l daemon-seed -p 8881
+          docker run --network p2p-network -v $PWD:$PWD -w $PWD -t $IMG \
+            p2p status -l daemon-leech -p 8882
 
           # Print logs
           docker logs tracker
