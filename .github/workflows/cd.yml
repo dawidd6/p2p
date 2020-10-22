@@ -20,10 +20,11 @@ jobs:
         uses: dawidd6/action-ansible-playbook@v2
         with:
           playbook: deploy.yml
-          key: ${{secrets.SERVER_KEY}}
+          key: ${{secrets.KEY}}
           inventory: |
             [all]
-            ${{secrets.SERVER_IP}} ansible_user=${{secrets.SERVER_USER}}
+            ${{secrets.DO_IP}} ansible_user=${{secrets.GCP_USER}}
+            ${{secrets.GCP_IP}} ansible_user=${{secrets.GCP_USER}}
           options: |
             -e docker_image=${{steps.docker.outputs.imageURL}}
             -e docker_username=${{github.actor}}
