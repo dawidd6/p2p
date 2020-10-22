@@ -51,7 +51,7 @@ jobs:
           docker run -p 8889:8889 --name tracker -d $IMG p2ptrackerd -l 0.0.0.0:8889
 
           # Start daemons
-          docker run -p 8881:8881 -p 44442:44442 --name daemon-seed -d -v $PWD:$PWD -w $PWD $IMG p2pd -l :8881 -s :44441
+          docker run -p 8881:8881 -p 44441:44441 --name daemon-seed -d -v $PWD:$PWD -w $PWD $IMG p2pd -l :8881 -s :44441
           docker run -p 8882:8882 -p 44442:44442 --name daemon-leech -d $IMG p2pd -l :8882 -s :44442
 
           # Add torrents
