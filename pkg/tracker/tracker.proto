@@ -8,7 +8,7 @@ service Tracker {
 
 message AnnounceRequest {
     string file_hash = 1;
-    string peer_address = 2;
+    string peer_port = 2;
 }
 
 message AnnounceResponse {

@@ -27,7 +27,8 @@ var (
 )
 
 func main() {
-	cmdRoot.Flags().StringVarP(&config.ListenAddress, "listen-address", "l", tracker.ListenAddress, "Tracker listening address.")
+	cmdRoot.Flags().StringVarP(&config.Host, "host", "l", tracker.Host, "Tracker listening host.")
+	cmdRoot.Flags().StringVarP(&config.Port, "port", "p", tracker.Port, "Tracker listening port.")
 	cmdRoot.Flags().DurationVarP(&config.AnnounceInterval, "announce-interval", "n", tracker.AnnounceInterval, "Tracker announcing interval.")
 	cmdRoot.Flags().DurationVarP(&config.CleanInterval, "clean-interval", "c", tracker.CleanInterval, "Tracker dangling peers cleaning interval.")
 

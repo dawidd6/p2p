@@ -22,14 +22,16 @@ import (
 )
 
 const (
-	ListenAddress         = "127.0.0.1:8888"
-	SeedListenAddress     = "0.0.0.0:44444"
-	ConnTimeout           = time.Second * 3
-	SeedConnTimeout       = time.Second * 2
-	DownloadsDir          = "."
-	MaxFetchingWorkers    = 4
-	MaxSeedingConnections = 4
-	MaxPeerFailures       = 4
+	ConnTimeout            = time.Second * 3
+	SeedConnTimeout        = time.Second * 2
+	MaxFetchingConnections = 4
+	MaxSeedingConnections  = 4
+	MaxPeerFailures        = 4
+
+	Host     = "127.0.0.1"
+	Port     = "8888"
+	SeedHost = "0.0.0.0"
+	SeedPort = "8889"
 )
 
 var (
@@ -41,10 +43,11 @@ var (
 )
 
 type Config struct {
-	MaxFetchingWorkers int
-	DownloadsDir       string
-	ListenAddress      string
-	SeedListenAddress  string
+	Host         string
+	Port         string
+	SeedHost     string
+	SeedPort     string
+	DownloadsDir string
 }
 
 type Task struct {
@@ -95,7 +98,8 @@ func Run(config *Config) error {
 	channel := make(chan error)
 
 	go func() {
-		listener, err := net.Listen("tcp", config.ListenAddress)
+		address := net.JoinHostPort(config.Host, config.Port)
+		listener, err := net.Listen("tcp", address)
 		if err != nil {
 			channel <- err
 		}
@@ -108,7 +112,8 @@ func Run(config *Config) error {
 	}()
 
 	go func() {
-		listener, err := net.Listen("tcp", config.SeedListenAddress)
+		address := net.JoinHostPort(config.SeedHost, config.SeedPort)
+		listener, err := net.Listen("tcp", address)
 		if err != nil {
 			channel <- err
 		}
@@ -134,8 +139,8 @@ func (daemon *Daemon) announce(task *Task) error {
 	}
 
 	request := &tracker.AnnounceRequest{
-		FileHash:    task.Torrent.FileHash,
-		PeerAddress: daemon.config.SeedListenAddress,
+		FileHash: task.Torrent.FileHash,
+		PeerPort: daemon.config.SeedPort,
 	}
 
 	client := tracker.NewTrackerClient(conn)
@@ -396,7 +401,7 @@ func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, e
 		State:            &state.State{},
 		AnnounceInterval: tracker.AnnounceInterval,
 		AnnounceTicker:   time.NewTicker(tracker.AnnounceInterval),
-		WorkerPool:       worker.New(daemon.config.MaxFetchingWorkers),
+		WorkerPool:       worker.New(MaxFetchingConnections),
 		PeersNotifier:    make(chan struct{}, 1),
 		PauseNotifier:    make(chan struct{}),
 		ResumeNotifier:   make(chan struct{}),

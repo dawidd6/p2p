@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 
 	"github.com/dawidd6/p2p/pkg/piece"
@@ -41,7 +42,7 @@ var (
 				return err
 			}
 
-			t, err := torrent.Create(file, *pieceSize, *trackerAddr)
+			t, err := torrent.Create(file, *pieceSize, *trackerAddress)
 			if err != nil {
 				return err
 			}
@@ -72,7 +73,8 @@ var (
 				return err
 			}
 
-			conn, err := grpc.Dial(*daemonAddr, grpc.WithInsecure())
+			address := net.JoinHostPort(*daemonHost, *daemonPort)
+			conn, err := grpc.Dial(address, grpc.WithInsecure())
 			if err != nil {
 				return err
 			}
@@ -98,7 +100,8 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fileHash := args[0]
 
-			conn, err := grpc.Dial(*daemonAddr, grpc.WithInsecure())
+			address := net.JoinHostPort(*daemonHost, *daemonPort)
+			conn, err := grpc.Dial(address, grpc.WithInsecure())
 			if err != nil {
 				return err
 			}
@@ -125,7 +128,8 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fileHash := args[0]
 
-			conn, err := grpc.Dial(*daemonAddr, grpc.WithInsecure())
+			address := net.JoinHostPort(*daemonHost, *daemonPort)
+			conn, err := grpc.Dial(address, grpc.WithInsecure())
 			if err != nil {
 				return err
 			}
@@ -151,7 +155,8 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fileHash := args[0]
 
-			conn, err := grpc.Dial(*daemonAddr, grpc.WithInsecure())
+			address := net.JoinHostPort(*daemonHost, *daemonPort)
+			conn, err := grpc.Dial(address, grpc.WithInsecure())
 			if err != nil {
 				return err
 			}
@@ -180,7 +185,8 @@ var (
 				fileHash = args[0]
 			}
 
-			conn, err := grpc.Dial(*daemonAddr, grpc.WithInsecure())
+			address := net.JoinHostPort(*daemonHost, *daemonPort)
+			conn, err := grpc.Dial(address, grpc.WithInsecure())
 			if err != nil {
 				return err
 			}
@@ -219,15 +225,17 @@ var (
 		Args: cobra.MaximumNArgs(1),
 	}
 
-	trackerAddr *string
-	pieceSize   *int64
-	daemonAddr  *string
-	withData    *bool
+	daemonHost     *string
+	daemonPort     *string
+	trackerAddress *string
+	pieceSize      *int64
+	withData       *bool
 )
 
 func main() {
-	daemonAddr = cmdRoot.PersistentFlags().StringP("listen-address", "l", daemon.ListenAddress, "Daemon listening address.")
-	trackerAddr = cmdCreate.Flags().StringP("tracker-address", "t", tracker.ListenAddress, "Tracker address.")
+	daemonHost = cmdRoot.PersistentFlags().StringP("host", "l", daemon.Host, "Daemon listening host.")
+	daemonPort = cmdRoot.PersistentFlags().StringP("port", "p", daemon.Port, "Daemon listening port.")
+	trackerAddress = cmdCreate.Flags().StringP("tracker-address", "t", net.JoinHostPort(tracker.Host, tracker.Port), "Tracker address.")
 	pieceSize = cmdCreate.Flags().Int64P("piece-size", "s", piece.Size, "Piece size.")
 	withData = cmdDelete.Flags().BoolP("with-data", "d", false, "Delete also downloaded data from disk.")
 
