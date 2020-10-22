@@ -9,7 +9,9 @@ jobs:
   cd-tracker:
     runs-on: ubuntu-latest
     steps:
-      - name: Publish Image
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Publish image
         uses: matootie/github-docker@v3.1.0
         with:
           accessToken: ${{github.token}}
