@@ -13,7 +13,7 @@
     - name: Allow port
       ufw:
         rule: allow
-        port: 8889
+        port: "8889"
         proto: tcp
     - name: Start tracker
       docker_container:
@@ -25,7 +25,7 @@
         restart_policy: always
         ports:
           - 8889:8889
-        command: p2ptrackerd -p 8889
+        command: p2ptrackerd -l 0.0.0.0 -p 8889
     - name: Prune Docker leftovers
       docker_prune:
         images: yes
