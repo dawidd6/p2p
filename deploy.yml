@@ -2,9 +2,17 @@
   hosts: all
   become: yes
   tasks:
-    - name: Install dependency
+    - name: Install Docker
       apt:
-        name: python3-docker
+        update_cache: yes
+        name:
+          - docker.io
+          - python3-docker
+    - name: Start Docker
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
     - name: Login to registry
       docker_login:
         registry_url: docker.pkg.github.com
