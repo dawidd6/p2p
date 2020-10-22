@@ -56,13 +56,16 @@ jobs:
             p2ptrackerd -p 8889
 
           # Start daemons
-          docker run --network p2p-network --name daemon-seed -d -v $PWD:$PWD -w $PWD $IMG \
+          docker run --network p2p-network --name daemon-seed -v $PWD:$PWD -w $PWD -d $IMG \
             p2pd -p 8881 -P 44441
-          docker run --network p2p-network --name daemon-leech -d -v $PWD:$PWD -w $PWD $IMG \
+          docker run --network p2p-network --name daemon-leech -w $PWD -d $IMG \
             p2pd -p 8882 -P 44442
 
           # Wait some time
           sleep 5s
+
+          # Copy torrent file
+          docker cp go.sum.torrent.json daemon-leech:$PWD
 
           # Add torrents
           docker exec -t daemon-seed \
