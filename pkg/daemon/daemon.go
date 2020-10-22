@@ -31,7 +31,7 @@ const (
 	Host     = "127.0.0.1"
 	Port     = "8888"
 	SeedHost = "0.0.0.0"
-	SeedPort = "8889"
+	SeedPort = "44444"
 )
 
 var (
