@@ -74,7 +74,7 @@ jobs:
             p2p add -p 8882 go.sum.torrent.json
 
           # Wait some time
-          sleep 5s
+          sleep 60s
 
           # Get statuses
           docker exec -t daemon-seed \
