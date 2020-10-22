@@ -12,6 +12,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Publish image
+        id: docker
         uses: matootie/github-docker@v3.1.0
         with:
           accessToken: ${{github.token}}
+      - name: Run playbook
+        uses: dawidd6/action-ansible-playbook@v2
+        with:
+          playbook: deploy.yml
+          key: ${{secrets.SERVER_KEY}}
+          inventory: |
+            [all]
+            ${{secrets.SERVER_IP}} ansible_user=${{secrets.SERVER_USER}}
+          options: |
+            -e docker_image=${{steps.docker.outputs.imageURL}}
+            -e docker_username=${{github.actor}}
+            -e docker_password=${{github.token}}
