@@ -72,6 +72,6 @@ jobs:
 
           # Get statuses
           docker run --network p2p-network -t $IMG \
-            p2p status -p 8881
+            p2p status -l daemon-seed -p 8881
           docker run --network p2p-network -t $IMG \
-            p2p status -p 8882
+            p2p status -l daemon-leech -p 8882
