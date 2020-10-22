@@ -6,6 +6,6 @@ RUN make
 
 FROM alpine:3
 COPY --from=builder /app/bin /
-RUN groupadd -r p2p && useradd -r -g p2p p2p
+RUN addgroup -S p2p && adduser -S p2p -G p2p
 USER p2p
 CMD ["p2p"]
