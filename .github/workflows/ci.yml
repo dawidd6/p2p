@@ -58,23 +58,23 @@ jobs:
           # Start daemons
           docker run --network p2p-network --name daemon-seed -d -v $PWD:$PWD -w $PWD $IMG \
             p2pd -p 8881 -P 44441
-          docker run --network p2p-network --name daemon-leech -d $IMG \
+          docker run --network p2p-network --name daemon-leech -d -v $PWD:$PWD -w $PWD $IMG \
             p2pd -p 8882 -P 44442
 
           # Wait some time
           sleep 5s
 
           # Add torrents
-          docker run --network p2p-network -v $PWD:$PWD -w $PWD -t $IMG \
-            p2p add -l daemon-seed -p 8881 go.sum.torrent.json
-          docker run --network p2p-network -v $PWD:$PWD -w $PWD -t $IMG \
-            p2p add -l daemon-leech -p 8882 go.sum.torrent.json
+          docker exec -t daemon-seed \
+            p2p add -p 8881 go.sum.torrent.json
+          docker exec -t daemon-leech \
+            p2p add -p 8882 go.sum.torrent.json
 
           # Wait some time
           sleep 5s
 
           # Get statuses
-          docker run --network p2p-network -t $IMG \
-            p2p status -l daemon-seed -p 8881
-          docker run --network p2p-network -t $IMG \
-            p2p status -l daemon-leech -p 8882
+          docker exec -t daemon-seed \
+            p2p status -p 8881
+          docker exec -t daemon-leech \
+            p2p status  -p 8882
