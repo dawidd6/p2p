@@ -2,6 +2,9 @@
   hosts: all
   become: yes
   tasks:
+    - name: Install dependency
+      apt:
+        name: python3-docker
     - name: Login to registry
       docker_login:
         registry_url: docker.pkg.github.com
