@@ -7,19 +7,6 @@ on:
   pull_request:
 
 jobs:
-  ci:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Setup Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.15
-      - name: Build binary
-        run: make
-      - name: Test code
-        run: make test
   ci-proto:
     runs-on: ubuntu-latest
     steps:
@@ -74,12 +61,17 @@ jobs:
           sleep 10s
 
           # Get statuses
+          echo "[command]p2p status -l daemon-seed"
           docker run --network p2p-network -v $PWD:$PWD -w $PWD -t $IMG \
             p2p status -l daemon-seed -p 8881
+          echo "[command]p2p status -l daemon-leech"
           docker run --network p2p-network -v $PWD:$PWD -w $PWD -t $IMG \
             p2p status -l daemon-leech -p 8882
 
           # Print logs
+          echo "[command]docker logs tracker"
           docker logs tracker
+          echo "[command]docker logs daemon-seed"
           docker logs daemon-seed
+          echo "[command]docker logs daemon-leech"
           docker logs daemon-leech
