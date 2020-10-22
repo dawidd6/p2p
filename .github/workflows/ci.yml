@@ -49,7 +49,7 @@ jobs:
 
           # Create torrent
           docker run -v $PWD:$PWD -w $PWD -t $IMG \
-            p2p create -s 4096 go.sum
+            p2p create -s 4096 -t tracker:8889 go.sum
 
           # Start tracker
           docker run --network p2p-network --name tracker -d $IMG \
