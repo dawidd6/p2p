@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	Host             = "0.0.0.0"
+	Host             = "127.0.0.1"
 	Port             = "8889"
 	AnnounceInterval = time.Second * 30
 	CleanInterval    = time.Second * 60
