@@ -23,7 +23,7 @@ jobs:
           key: ${{secrets.KEY}}
           inventory: |
             [all]
-            ${{secrets.DO_IP}} ansible_user=${{secrets.GCP_USER}}
+            ${{secrets.DO_IP}} ansible_user=${{secrets.DO_USER}}
             ${{secrets.GCP_IP}} ansible_user=${{secrets.GCP_USER}}
           options: |
             -e docker_image=${{steps.docker.outputs.imageURL}}
