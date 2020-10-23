@@ -31,6 +31,7 @@ func main() {
 	cmdRoot.Flags().StringVarP(&config.SeedHost, "seed-host", "L", daemon.SeedHost, "Seed listening host.")
 	cmdRoot.Flags().StringVarP(&config.SeedPort, "seed-port", "P", daemon.SeedPort, "Seed listening port.")
 	cmdRoot.Flags().StringVarP(&config.DownloadsDir, "downloads-dir", "d", ".", "Where to place downloaded files.")
+	cmdRoot.Flags().StringVarP(&config.SaveFilePath, "save-file", "s", daemon.SavedStateFilePath, "Where to write a state save file.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 
