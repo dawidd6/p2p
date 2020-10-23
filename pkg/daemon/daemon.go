@@ -3,10 +3,14 @@ package daemon
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"os/signal"
+	"strings"
 	"sync"
 	"time"
 
@@ -35,6 +39,8 @@ const (
 	Port     = "8888"
 	SeedHost = "0.0.0.0"
 	SeedPort = "44444"
+
+	SavedStateFilePath = "$HOME/.p2p.torrent.json"
 )
 
 var (
@@ -53,6 +59,7 @@ type Config struct {
 	SeedHost     string
 	SeedPort     string
 	DownloadsDir string
+	SaveFilePath string
 }
 
 // Task holds all the info needed for a torrent process
@@ -75,12 +82,19 @@ type Task struct {
 	WorkerPool *worker.Pool
 }
 
+// Save represents the torrent queue state that is saved on disk
+type Save struct {
+	Torrent *torrent.Torrent
+	State   *state.State
+}
+
 // Daemon represents daemon service (with seed)
 type Daemon struct {
-	config     *Config
-	torrents   map[string]*Task
-	mutex      sync.RWMutex
-	seedWaiter chan struct{}
+	config       *Config
+	torrents     map[string]*Task
+	torrentsFile *os.File
+	mutex        sync.RWMutex
+	seedWaiter   chan struct{}
 	UnimplementedDaemonServer
 	UnimplementedSeederServer
 }
@@ -93,6 +107,8 @@ func Run(config *Config) error {
 		seedWaiter: make(chan struct{}, MaxSeedingConnections),
 	}
 
+	config.SaveFilePath = strings.Replace(config.SaveFilePath, "$HOME", os.Getenv("HOME"), 1)
+
 	// Make downloads directory
 	err := os.MkdirAll(config.DownloadsDir, 0775)
 	if err != nil {
@@ -104,6 +120,15 @@ func Run(config *Config) error {
 	if err != nil {
 		return err
 	}
+
+	// Restore torrents
+	err = daemon.restore()
+	if err != nil {
+		return err
+	}
+
+	// Run this on program exit
+	go daemon.exiting()
 
 	channel := make(chan error)
 
@@ -139,6 +164,99 @@ func Run(config *Config) error {
 	}()
 
 	return <-channel
+}
+
+// exiting should be called in separate goroutine
+func (daemon *Daemon) exiting() {
+	// Create channel and subscribe to signals
+	channel := make(chan os.Signal)
+	signal.Notify(channel, os.Interrupt, os.Kill)
+
+	// Wait for signal
+	<-channel
+	log.Println("Exiting")
+
+	// Save torrent queue state on exit
+	err := daemon.save()
+	if err != nil {
+		log.Println(err)
+	}
+
+	// Exit program with non-zero status
+	os.Exit(1)
+}
+
+// save writes torrent queue state on disk
+func (daemon *Daemon) save() error {
+	// Transform torrent queue
+	m := make(map[string]*Save)
+	for fileHash, task := range daemon.torrents {
+		m[fileHash] = &Save{
+			Torrent: task.Torrent,
+			State:   task.State,
+		}
+	}
+
+	// Get a JSON representation of it
+	s, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	// Save torrent queue state
+	return ioutil.WriteFile(daemon.config.SaveFilePath, s, 0666)
+}
+
+// restore reads torrent queue state from disk
+func (daemon *Daemon) restore() error {
+	// Open saved torrent queue state file
+	f, err := os.OpenFile(daemon.config.SaveFilePath, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+	daemon.torrentsFile = f
+
+	// Read this whole file
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		return err
+	}
+
+	// The file is empty, nothing to do with it
+	if len(b) == 0 {
+		return nil
+	}
+
+	// Load JSON
+	m := make(map[string]*Save)
+	err = json.Unmarshal(b, &m)
+	if err != nil {
+		return err
+	}
+
+	// Add torrents back to the queue
+	for fileHash, save := range m {
+		task := &Task{
+			Torrent:          save.Torrent,
+			State:            save.State,
+			AnnounceInterval: tracker.AnnounceInterval,
+			AnnounceTicker:   time.NewTicker(tracker.AnnounceInterval),
+			WorkerPool:       worker.New(MaxFetchingConnections),
+			PeersNotifier:    make(chan struct{}, 1),
+			PauseNotifier:    make(chan struct{}),
+			ResumeNotifier:   make(chan struct{}),
+			DeleteNotifier:   make(chan struct{}),
+		}
+
+		daemon.mutex.Lock()
+		daemon.torrents[fileHash] = task
+		daemon.mutex.Unlock()
+
+		go daemon.fetching(task)
+		go daemon.announcing(task)
+	}
+
+	return nil
 }
 
 // announce announces to tracker about having a torrent in the queue
@@ -455,6 +573,12 @@ func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, e
 	// Keep announcing torrent to tracker
 	go daemon.announcing(task)
 
+	// Save torrents
+	err := daemon.save()
+	if err != nil {
+		return nil, err
+	}
+
 	// Return to client
 	return &AddResponse{}, nil
 }
@@ -497,6 +621,12 @@ func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteRe
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	// Save torrents
+	err = daemon.save()
+	if err != nil {
+		return nil, err
 	}
 
 	// Return to client
