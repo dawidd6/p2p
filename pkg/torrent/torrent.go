@@ -1,3 +1,4 @@
+// Package torrent provides convenient functions for Torrent type
 package torrent
 
 import (
@@ -19,6 +20,7 @@ var (
 	WrongExtensionError = errors.New("wrong torrent file extension")
 )
 
+// Create makes a new torrent from file
 func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error) {
 	info, err := file.Stat()
 	if err != nil {
@@ -65,6 +67,7 @@ func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error
 	}, nil
 }
 
+// Load reads torrent from given file
 func Load(filePath string) (*Torrent, error) {
 	if !strings.HasSuffix(filePath, FileExtension) {
 		return nil, WrongExtensionError
@@ -85,6 +88,7 @@ func Load(filePath string) (*Torrent, error) {
 	return torrent, nil
 }
 
+// Save writes given torrent to a file
 func Save(torrent *Torrent) error {
 	filename := fmt.Sprintf("%s.%s", torrent.FileName, FileExtension)
 
@@ -96,6 +100,7 @@ func Save(torrent *Torrent) error {
 	return ioutil.WriteFile(filename, message, 0666)
 }
 
+// Verify checks if given file is indeed a torrent data file
 func Verify(torrent *Torrent, f *os.File) error {
 	hasher := hash.New()
 
