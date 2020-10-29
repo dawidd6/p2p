@@ -41,7 +41,7 @@ jobs:
 
           # Start tracker
           docker run --network=$NETWORK --name=tracker --detach $IMG \
-            p2ptrackerd
+            p2ptrackerd --announce-interval=5s
 
           # Start daemons
           docker run --network=$NETWORK --name=daemon-seed-1 --volume=$PWD:$PWD --workdir=$PWD --detach $IMG \
@@ -56,11 +56,11 @@ jobs:
 
           # Add torrents
           docker run --network=$NETWORK --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
-            p2p add --host=daemon-seed-1 --port=8881 go.sum.torrent.json
-          docker run --network=$NETWORK --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
             p2p add --host=daemon-leech-1 --port=8882 go.sum.torrent.json
           docker run --network=$NETWORK --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
             p2p add --host=daemon-leech-2 --port=8883 go.sum.torrent.json
+          docker run --network=$NETWORK --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
+            p2p add --host=daemon-seed-1 --port=8881 go.sum.torrent.json
 
           # Wait some time
           sleep 10s
