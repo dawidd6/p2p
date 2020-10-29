@@ -25,7 +25,7 @@ type Tracker struct {
 	index      map[string]map[string]time.Time // fileHash peerAddress peerTimestamp
 	indexMutex sync.RWMutex
 
-	cleaner *time.Ticker
+	cleanTicker *time.Ticker
 
 	UnimplementedTrackerServer
 }
@@ -33,9 +33,9 @@ type Tracker struct {
 // Run starts tracker server
 func Run(conf *config.Config) error {
 	tracker := &Tracker{
-		conf:    conf,
-		index:   make(map[string]map[string]time.Time),
-		cleaner: time.NewTicker(conf.CleanInterval),
+		conf:        conf,
+		index:       make(map[string]map[string]time.Time),
+		cleanTicker: time.NewTicker(conf.CleanInterval),
 	}
 
 	// Start cleaning peer index
@@ -56,7 +56,7 @@ func Run(conf *config.Config) error {
 
 // cleaning prunes peers periodically
 func (tracker *Tracker) cleaning() {
-	for range tracker.cleaner.C {
+	for range tracker.cleanTicker.C {
 		tracker.indexMutex.Lock()
 		tracker.clean()
 		tracker.indexMutex.Unlock()
@@ -65,10 +65,12 @@ func (tracker *Tracker) cleaning() {
 
 // clean prunes dangling peers
 func (tracker *Tracker) clean() {
-	for fileHash := range tracker.index {
-		for peerAddress, peerTimestamp := range tracker.index[fileHash] {
+	now := time.Now()
+
+	for fileHash, peerInfo := range tracker.index {
+		for peerAddress, peerTimestamp := range peerInfo {
 			// Delete peer entry
-			if time.Since(peerTimestamp) > tracker.conf.CleanInterval {
+			if now.Sub(peerTimestamp) > tracker.conf.AnnounceInterval*2 {
 				delete(tracker.index[fileHash], peerAddress)
 			}
 			// Delete torrent entry
@@ -112,10 +114,10 @@ func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*An
 	// Get list of peers for a torrent
 	tracker.indexMutex.RLock()
 	peerAddresses := make([]string, 0, len(tracker.index[req.FileHash])-1)
-	for peerAddressKey := range tracker.index[req.FileHash] {
-		// Don't return announcing peer his own address
-		if peerAddressKey != peerAddress {
-			peerAddresses = append(peerAddresses, peerAddressKey)
+	for peerAddr := range tracker.index[req.FileHash] {
+		// Don't return announcing peer their own address
+		if peerAddr != peerAddress {
+			peerAddresses = append(peerAddresses, peerAddr)
 		}
 	}
 	tracker.indexMutex.RUnlock()
