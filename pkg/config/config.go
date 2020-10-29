@@ -57,7 +57,7 @@ func Default() *Config {
 		MaxSeedConnections:  4,
 		MaxFetchConnections: 4,
 
-		PieceSize: 256 * 1000,
+		PieceSize: 256 * 1024,
 
 		AnnounceTimeout: time.Second * 5,
 		FetchTimeout:    time.Second * 3,
