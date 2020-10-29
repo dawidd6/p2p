@@ -38,7 +38,7 @@ type Config struct {
 // Default returns an instance of config with default values set
 func Default() *Config {
 	return &Config{
-		TrackerHost: "0.0.0.0",
+		TrackerHost: "127.0.0.1",
 		TrackerPort: "8889",
 
 		AnnounceInterval: time.Second * 30,
