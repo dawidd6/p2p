@@ -215,9 +215,15 @@ func (daemon *Daemon) announce(task *tasker.Task) error {
 
 // announcing should be called in separate goroutine
 func (daemon *Daemon) announcing(task *tasker.Task) {
+	// Make an initial announce
+	err := daemon.announce(task)
+	if err != nil {
+		log.Println(err)
+	}
+
 	// Keep announcing after specified interval
 	for range task.AnnounceTicker.C {
-		err := daemon.announce(task)
+		err = daemon.announce(task)
 		if err != nil {
 			log.Println(err)
 		}
@@ -455,6 +461,9 @@ func (daemon *Daemon) add(torr *torrent.Torrent) error {
 	if err != nil {
 		// Start torrent fetching process
 		go daemon.fetching(task)
+	} else {
+		task.State.DownloadedBytes = task.Torrent.FileSize
+		task.State.Completed = true
 	}
 
 	// Keep announcing torrent to tracker
