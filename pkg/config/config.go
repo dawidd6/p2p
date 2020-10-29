@@ -30,6 +30,9 @@ type Config struct {
 
 	AnnounceTimeout time.Duration
 	FetchTimeout    time.Duration
+	CallTimeout     time.Duration
+
+	DeleteWithData bool
 }
 
 // Default returns an instance of config with default values set
@@ -58,5 +61,8 @@ func Default() *Config {
 
 		AnnounceTimeout: time.Second * 5,
 		FetchTimeout:    time.Second * 3,
+		CallTimeout:     time.Second * 5,
+
+		DeleteWithData: false,
 	}
 }

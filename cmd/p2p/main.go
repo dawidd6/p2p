@@ -41,7 +41,8 @@ var (
 				return err
 			}
 
-			t, err := torrent.Create(file, *pieceSize, *trackerAddress)
+			trackerAddress := net.JoinHostPort(conf.TrackerHost, conf.TrackerPort)
+			t, err := torrent.Create(file, conf.PieceSize, trackerAddress)
 			if err != nil {
 				return err
 			}
@@ -62,28 +63,31 @@ var (
 	}
 
 	cmdAdd = &cobra.Command{
-		Use:   "add TORRENT",
+		Use:   "add TORRENT_FILE",
 		Short: "Add specified torrents to client.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			filePath := args[0]
 
-			t, err := torrent.Load(filePath)
+			torr, err := torrent.Load(filePath)
 			if err != nil {
 				return err
 			}
 
-			address := net.JoinHostPort(*daemonHost, *daemonPort)
+			address := net.JoinHostPort(conf.DaemonHost, conf.DaemonPort)
 			conn, err := grpc.Dial(address, grpc.WithInsecure())
 			if err != nil {
 				return err
 			}
 
 			request := &daemon.AddRequest{
-				Torrent: t,
+				Torrent: torr,
 			}
 
+			ctx, cancel := context.WithTimeout(context.Background(), conf.CallTimeout)
+			defer cancel()
+
 			client := daemon.NewDaemonClient(conn)
-			_, err = client.Add(context.Background(), request)
+			_, err = client.Add(ctx, request)
 			if err != nil {
 				return err
 			}
@@ -99,7 +103,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fileHash := args[0]
 
-			address := net.JoinHostPort(*daemonHost, *daemonPort)
+			address := net.JoinHostPort(conf.DaemonHost, conf.DaemonPort)
 			conn, err := grpc.Dial(address, grpc.WithInsecure())
 			if err != nil {
 				return err
@@ -107,11 +111,14 @@ var (
 
 			request := &daemon.DeleteRequest{
 				FileHash: fileHash,
-				WithData: *withData,
+				WithData: conf.DeleteWithData,
 			}
 
+			ctx, cancel := context.WithTimeout(context.Background(), conf.CallTimeout)
+			defer cancel()
+
 			client := daemon.NewDaemonClient(conn)
-			_, err = client.Delete(context.Background(), request)
+			_, err = client.Delete(ctx, request)
 			if err != nil {
 				return err
 			}
@@ -127,7 +134,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fileHash := args[0]
 
-			address := net.JoinHostPort(*daemonHost, *daemonPort)
+			address := net.JoinHostPort(conf.DaemonHost, conf.DaemonPort)
 			conn, err := grpc.Dial(address, grpc.WithInsecure())
 			if err != nil {
 				return err
@@ -137,8 +144,11 @@ var (
 				FileHash: fileHash,
 			}
 
+			ctx, cancel := context.WithTimeout(context.Background(), conf.CallTimeout)
+			defer cancel()
+
 			client := daemon.NewDaemonClient(conn)
-			_, err = client.Pause(context.Background(), request)
+			_, err = client.Pause(ctx, request)
 			if err != nil {
 				return err
 			}
@@ -154,7 +164,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fileHash := args[0]
 
-			address := net.JoinHostPort(*daemonHost, *daemonPort)
+			address := net.JoinHostPort(conf.DaemonHost, conf.DaemonPort)
 			conn, err := grpc.Dial(address, grpc.WithInsecure())
 			if err != nil {
 				return err
@@ -164,8 +174,11 @@ var (
 				FileHash: fileHash,
 			}
 
+			ctx, cancel := context.WithTimeout(context.Background(), conf.CallTimeout)
+			defer cancel()
+
 			client := daemon.NewDaemonClient(conn)
-			_, err = client.Resume(context.Background(), request)
+			_, err = client.Resume(ctx, request)
 			if err != nil {
 				return err
 			}
@@ -184,7 +197,7 @@ var (
 				fileHash = args[0]
 			}
 
-			address := net.JoinHostPort(*daemonHost, *daemonPort)
+			address := net.JoinHostPort(conf.DaemonHost, conf.DaemonPort)
 			conn, err := grpc.Dial(address, grpc.WithInsecure())
 			if err != nil {
 				return err
@@ -194,8 +207,11 @@ var (
 				FileHash: fileHash,
 			}
 
+			ctx, cancel := context.WithTimeout(context.Background(), conf.CallTimeout)
+			defer cancel()
+
 			client := daemon.NewDaemonClient(conn)
-			response, err := client.Status(context.Background(), request)
+			response, err := client.Status(ctx, request)
 			if err != nil {
 				return err
 			}
@@ -226,21 +242,19 @@ var (
 		Args: cobra.MaximumNArgs(1),
 	}
 
-	daemonHost     *string
-	daemonPort     *string
-	trackerAddress *string
-	pieceSize      *int64
-	withData       *bool
+	conf = config.Default()
 )
 
 func main() {
-	conf := config.Default()
+	cmdRoot.PersistentFlags().StringVarP(&conf.DaemonHost, "host", "l", conf.DaemonHost, "Daemon listening host.")
+	cmdRoot.PersistentFlags().StringVarP(&conf.DaemonPort, "port", "p", conf.DaemonPort, "Daemon listening port.")
+	cmdRoot.PersistentFlags().DurationVarP(&conf.CallTimeout, "call-timeout", "t", conf.CallTimeout, "Delete also downloaded data from disk.")
 
-	daemonHost = cmdRoot.PersistentFlags().StringP("host", "l", conf.DaemonHost, "Daemon listening host.")
-	daemonPort = cmdRoot.PersistentFlags().StringP("port", "p", conf.DaemonPort, "Daemon listening port.")
-	trackerAddress = cmdCreate.Flags().StringP("tracker-address", "t", net.JoinHostPort(conf.TrackerHost, conf.TrackerPort), "Tracker address.")
-	pieceSize = cmdCreate.Flags().Int64P("piece-size", "s", conf.PieceSize, "Piece size.")
-	withData = cmdDelete.Flags().BoolP("with-data", "d", false, "Delete also downloaded data from disk.")
+	cmdCreate.Flags().StringVarP(&conf.TrackerHost, "tracker-host", "l", conf.TrackerHost, "Tracker address host.")
+	cmdCreate.Flags().StringVarP(&conf.TrackerPort, "tracker-port", "p", conf.TrackerPort, "Tracker address port.")
+	cmdCreate.Flags().Int64VarP(&conf.PieceSize, "piece-size", "s", conf.PieceSize, "Piece size.")
+
+	cmdDelete.Flags().BoolVarP(&conf.DeleteWithData, "with-data", "d", conf.DeleteWithData, "Delete also downloaded data from disk.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 	cmdRoot.AddCommand(
