@@ -4,10 +4,10 @@ package daemon
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -81,9 +81,6 @@ func Run(conf *config.Config) error {
 		return err
 	}
 
-	// Run this on program exit
-	go daemon.exiting()
-
 	channel := make(chan error)
 
 	// Start daemon server
@@ -113,41 +110,6 @@ func Run(conf *config.Config) error {
 	}()
 
 	return <-channel
-}
-
-// exiting should be called in separate goroutine
-func (daemon *Daemon) exiting() {
-	// Create channel and subscribe to signals
-	channel := make(chan os.Signal)
-	signal.Notify(channel, os.Interrupt, os.Kill)
-
-	// Wait for signal
-	<-channel
-	log.Println("Exiting")
-
-	// Save torrent queue state on exit
-	err := daemon.save()
-	if err != nil {
-		log.Println(err)
-	}
-
-	// Exit program with non-zero status
-	os.Exit(1)
-}
-
-// save writes torrent
-func (daemon *Daemon) save() error {
-	daemon.torrentsMutex.RLock()
-	defer daemon.torrentsMutex.RUnlock()
-
-	for fileHash, task := range daemon.torrents {
-		err := torrent.Save(task.Torrent, daemon.conf.TorrentsDir, fileHash)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // restore reads saved torrent files from disk and adds them to the queue
@@ -206,6 +168,7 @@ func (daemon *Daemon) announce(task *tasker.Task) error {
 	if err != nil {
 		return err
 	}
+	cancel()
 
 	// Close the connection to tracker
 	err = conn.Close()
@@ -485,8 +448,8 @@ func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, e
 	// Keep announcing torrent to tracker
 	go daemon.announcing(task)
 
-	// Save torrents
-	err := daemon.save()
+	// Save torrent file to disk
+	err := torrent.Save(req.Torrent, daemon.conf.TorrentsDir, req.Torrent.FileHash)
 	if err != nil {
 		return nil, err
 	}
@@ -521,8 +484,16 @@ func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteRe
 	// Finish any fetching workers
 	task.WorkerPool.Finish()
 
-	// Close torrent file
+	// Close torrent data file
 	err := task.File.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	// Remove torrent file from disk
+	// TODO do it better
+	filePath := filepath.Join(daemon.conf.TorrentsDir, fmt.Sprintf("%s.%s", req.FileHash, torrent.FileExtension))
+	err = os.Remove(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -533,12 +504,6 @@ func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteRe
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	// Save torrents
-	err = daemon.save()
-	if err != nil {
-		return nil, err
 	}
 
 	// Return to client
