@@ -51,9 +51,6 @@ jobs:
           docker run --network=$NETWORK --name=daemon-leech-2 --workdir=$PWD --detach $IMG \
             p2pd --host=0.0.0.0 --port=8883 --seed-port=44443
 
-          # Wait some time
-          sleep 5s
-
           # Add torrents
           docker run --network=$NETWORK --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
             p2p add --host=daemon-leech-1 --port=8882 go.sum.torrent.json
