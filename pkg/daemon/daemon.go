@@ -175,7 +175,6 @@ func (daemon *Daemon) announce(task *tasker.Task) error {
 	if err != nil {
 		return err
 	}
-	cancel()
 
 	// Close the connection to tracker
 	err = conn.Close()
@@ -209,6 +208,9 @@ func (daemon *Daemon) announce(task *tasker.Task) error {
 		task.AnnounceInterval = announceInterval
 		task.AnnounceTicker.Reset(task.AnnounceInterval)
 	}
+
+	// Set state peer count
+	task.State.PeersCount = int64(len(task.Peers))
 
 	return nil
 }
