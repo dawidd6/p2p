@@ -441,7 +441,7 @@ func (daemon *Daemon) add(torr *torrent.Torrent) error {
 	task = tasker.New(torr, daemon.conf)
 
 	// Open or create the torrent data file
-	dataFilePath := torrent.File(daemon.conf.DownloadsDir, task.Torrent.FileName)
+	dataFilePath := task.Torrent.FileName
 	task.DataFile, err = os.OpenFile(dataFilePath, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return err
