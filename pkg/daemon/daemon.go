@@ -111,34 +111,41 @@ func Run(conf *config.Config) error {
 	return <-channel
 }
 
-// restore reads saved torrent files from disk and adds them to the queue
+// restore reads saved torrent files from disk and adds them back to the queue
 func (daemon *Daemon) restore() error {
+	// Find all torrent files on disk in directory
 	glob := torrent.File(daemon.conf.TorrentsDir, "*")
 	torrentFilePaths, err := filepath.Glob(glob)
 	if err != nil {
 		return err
 	}
 
+	// Just exit if no files were found
 	if torrentFilePaths == nil {
 		return nil
 	}
 
+	// Add every found torrent back to the queue
 	for _, torrentFilePath := range torrentFilePaths {
+		// Open torrent file
 		torrentFile, err := os.OpenFile(torrentFilePath, os.O_RDONLY, 0666)
 		if err != nil {
 			return err
 		}
 
+		// Read the torrent from file
 		torr, err := torrent.Read(torrentFile)
 		if err != nil {
 			return err
 		}
 
+		// Close torrent file, it is later reopened
 		err = torrentFile.Close()
 		if err != nil {
 			return err
 		}
 
+		// Add torrent to the queue
 		err = daemon.add(torr)
 		if err != nil {
 			return err
@@ -150,9 +157,6 @@ func (daemon *Daemon) restore() error {
 
 // announce announces to tracker about having a torrent in the queue
 func (daemon *Daemon) announce(task *tasker.Task) error {
-	log.Println("announce", "start")
-	defer log.Println("announce", "stop")
-
 	// Connect to tracker
 	conn, err := grpc.Dial(task.Torrent.TrackerAddress, grpc.WithInsecure())
 	if err != nil {
@@ -182,29 +186,24 @@ func (daemon *Daemon) announce(task *tasker.Task) error {
 		return err
 	}
 
-	// Set peer addresses
+	// Set peer addresses and failures
 	task.PeersMutex.Lock()
 	task.Peers = make(map[string]int, len(response.PeerAddresses))
 	for _, peerAddr := range response.PeerAddresses {
 		task.Peers[peerAddr] = 0
 	}
-	if len(task.PeersNotifier) == 1 {
+	if len(task.PeersNotifier) == cap(task.PeersNotifier) {
 		// Drain channel if it's full
-		log.Println("announce", "draining channel")
 		<-task.PeersNotifier
-		log.Println("announce", "channel drained")
 	}
 	task.PeersMutex.Unlock()
 
 	// Notify about new peer list
-	log.Println("announce", "notifying")
 	task.PeersNotifier <- struct{}{}
-	log.Println("announce", "notified")
 
 	// Set announcing interval if changed and reset the ticker
 	announceInterval := time.Duration(response.AnnounceInterval) * time.Second
 	if task.AnnounceInterval != announceInterval {
-		log.Println("announce", "setting interval", announceInterval)
 		task.AnnounceInterval = announceInterval
 		task.AnnounceTicker.Reset(task.AnnounceInterval)
 	}
@@ -234,8 +233,6 @@ func (daemon *Daemon) announcing(task *tasker.Task) {
 
 // fetch retrieves one piece from one peer
 func (daemon *Daemon) fetch(task *tasker.Task, pieceNumber int64, pieceHash string, pieceOffset int64, peerAddr string) error {
-	log.Println("fetch", pieceNumber, peerAddr)
-
 	hash := hasher.New()
 
 	// Try reading piece from disk
@@ -310,10 +307,8 @@ func (daemon *Daemon) peer(task *tasker.Task) string {
 		}
 		task.PeersMutex.Unlock()
 
-		log.Println("fetch", "waiting for peers")
 		// No good peer were found, wait for new list from tracker
 		<-task.PeersNotifier
-		log.Println("fetch", "got new peers")
 	}
 }
 
@@ -324,7 +319,6 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 	if err == nil {
 		task.State.DownloadedBytes = task.Torrent.FileSize
 		task.State.Completed = true
-		log.Println("seeding")
 		return
 	}
 
@@ -342,11 +336,8 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 			// Pause execution if desired or exit from function if torrent is deleted
 			select {
 			case <-task.PauseNotifier:
-				log.Println("fetch", "paused", task.Torrent.FileHash)
 				<-task.ResumeNotifier
-				log.Println("fetch", "resumed", task.Torrent.FileHash)
 			case <-task.DeleteNotifier:
-				log.Println("fetch", "deleted", task.Torrent.FileHash)
 				return
 			default:
 			}
@@ -379,7 +370,6 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 		} else {
 			task.State.DownloadedBytes = task.Torrent.FileSize
 			task.State.Completed = true
-			log.Println("completed")
 			return
 		}
 	}
@@ -387,10 +377,11 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 
 // seed is an interceptor (middleware) and it waits for available seeding slot
 func (daemon *Daemon) seed(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	// Allow only N seed connections at the time
 	select {
+	// Exit if timeout
 	case <-ctx.Done():
 		return nil, MaxSeedConnectionsError
+	// Allow only N seed connections at the time
 	case daemon.seedWaiter <- struct{}{}:
 		res, err := handler(ctx, req)
 		<-daemon.seedWaiter
@@ -487,7 +478,7 @@ func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, e
 	return &AddResponse{}, nil
 }
 
-// Add is called by the client and it deletes a torrent from the queue
+// Delete is called by the client and it deletes a torrent from the queue
 func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteResponse, error) {
 	var err error
 
@@ -579,7 +570,7 @@ func (daemon *Daemon) Status(ctx context.Context, req *StatusRequest) (*StatusRe
 	}, nil
 }
 
-// Add is called by the client and it resumes a torrent in the queue
+// Resume is called by the client and it resumes a torrent in the queue
 func (daemon *Daemon) Resume(ctx context.Context, req *ResumeRequest) (*ResumeResponse, error) {
 	// Check if torrent is present in queue
 	daemon.torrentsMutex.RLock()
@@ -604,7 +595,7 @@ func (daemon *Daemon) Resume(ctx context.Context, req *ResumeRequest) (*ResumeRe
 	return &ResumeResponse{}, nil
 }
 
-// Add is called by the client and it pauses a torrent in the queue
+// Pause is called by the client and it pauses a torrent in the queue
 func (daemon *Daemon) Pause(ctx context.Context, req *PauseRequest) (*PauseResponse, error) {
 	// Check if torrent is present in queue
 	daemon.torrentsMutex.RLock()

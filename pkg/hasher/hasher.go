@@ -1,4 +1,4 @@
-// Package hasher holds a hash.Hash convenient wrapper
+// Package hasher includes a hash.Hash convenient wrapper
 package hasher
 
 import (

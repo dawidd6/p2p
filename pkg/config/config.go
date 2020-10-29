@@ -1,3 +1,4 @@
+// Package config includes configuration options for the whole system
 package config
 
 import (
@@ -6,6 +7,7 @@ import (
 	"time"
 )
 
+// Config struct holds all configurable aspects of the system
 type Config struct {
 	TrackerHost string
 	TrackerPort string

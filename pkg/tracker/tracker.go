@@ -4,7 +4,6 @@ package tracker
 import (
 	"context"
 	"errors"
-	"log"
 	"net"
 	"sync"
 	"time"
@@ -70,12 +69,10 @@ func (tracker *Tracker) clean() {
 		for peerAddress, peerTimestamp := range tracker.index[fileHash] {
 			// Delete peer entry
 			if time.Since(peerTimestamp) > tracker.conf.CleanInterval {
-				log.Println("clean", fileHash, peerAddress)
 				delete(tracker.index[fileHash], peerAddress)
 			}
 			// Delete torrent entry
 			if len(tracker.index[fileHash]) == 0 {
-				log.Println("clean", fileHash)
 				delete(tracker.index, fileHash)
 			}
 		}
@@ -99,8 +96,6 @@ func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*An
 	// Construct needed variables
 	peerAddress := net.JoinHostPort(host, req.PeerPort)
 	announceInterval := tracker.conf.AnnounceInterval.Milliseconds() / 1000
-
-	log.Println("Announce", req.FileHash, peerAddress)
 
 	// Create torrent file hash entry in map, if does not exist
 	tracker.indexMutex.Lock()

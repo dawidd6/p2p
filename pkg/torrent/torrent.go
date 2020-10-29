@@ -13,6 +13,7 @@ import (
 	"github.com/dawidd6/p2p/pkg/piece"
 )
 
+// FileExtension is the default torrent file extension
 const FileExtension = "torrent.json"
 
 // Create makes a new torrent from file
@@ -62,6 +63,7 @@ func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error
 	}, nil
 }
 
+// File returns a file path to torrent file
 func File(dir, name string) string {
 	return filepath.Join(dir, fmt.Sprintf("%s.%s", name, FileExtension))
 }

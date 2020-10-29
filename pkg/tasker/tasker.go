@@ -1,3 +1,4 @@
+// Package tasker includes a Task struct
 package tasker
 
 import (
@@ -34,6 +35,7 @@ type Task struct {
 	WorkerPool *worker.Pool
 }
 
+// New returns a new Task instance
 func New(torr *torrent.Torrent, conf *config.Config) *Task {
 	return &Task{
 		Torrent: torr,
