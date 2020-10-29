@@ -8,9 +8,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
-	"github.com/dawidd6/p2p/pkg/hash"
+	"github.com/dawidd6/p2p/pkg/hasher"
 	"github.com/dawidd6/p2p/pkg/piece"
 )
 
@@ -27,8 +28,8 @@ func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error
 		return nil, err
 	}
 
-	fileHasher := hash.New()
-	pieceHasher := hash.New()
+	fileHasher := hasher.New()
+	pieceHasher := hasher.New()
 	pieceHashes := make([]string, 0)
 
 	for {
@@ -89,20 +90,20 @@ func Load(filePath string) (*Torrent, error) {
 }
 
 // Save writes given torrent to a file
-func Save(torrent *Torrent) error {
-	filename := fmt.Sprintf("%s.%s", torrent.FileName, FileExtension)
+func Save(torrent *Torrent, dir, fileName string) error {
+	filePath := filepath.Join(dir, fmt.Sprintf("%s.%s", fileName, FileExtension))
 
 	message, err := json.MarshalIndent(torrent, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	return ioutil.WriteFile(filename, message, 0666)
+	return ioutil.WriteFile(filePath, message, 0666)
 }
 
 // Verify checks if given file is indeed a torrent data file
 func Verify(torrent *Torrent, f *os.File) error {
-	hasher := hash.New()
+	hash := hasher.New()
 
 	for i, pieceHash := range torrent.PieceHashes {
 		pieceNumber := int64(i)
@@ -112,7 +113,7 @@ func Verify(torrent *Torrent, f *os.File) error {
 			return err
 		}
 
-		err = hasher.Verify(pieceData, pieceHash)
+		err = hash.Verify(pieceData, pieceHash)
 		if err != nil {
 			return err
 		}

@@ -44,7 +44,7 @@ message StatusRequest {
 }
 
 message StatusResponse {
-    map<string, State> torrents = 1;
+    repeated State states = 1;
 }
 
 message ResumeRequest {

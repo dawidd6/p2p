@@ -1,5 +1,5 @@
-// Package hash holds a hash.Hash convenient wrapper
-package hash
+// Package hasher holds a hash.Hash convenient wrapper
+package hasher
 
 import (
 	"crypto/sha256"
@@ -13,22 +13,22 @@ var (
 )
 
 // Hash wraps hash.Hash type
-type Hash struct {
+type Hasher struct {
 	hash.Hash
 }
 
 // New returns a new instance of Hash
-func New() *Hash {
-	return &Hash{sha256.New()}
+func New() *Hasher {
+	return &Hasher{sha256.New()}
 }
 
 // HexSum calculates a checksum and returns a hex representation of it
-func (hash *Hash) HexSum() string {
+func (hash *Hasher) HexSum() string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
 // Verify checks if given bytes' checksum is equal to the one provided
-func (hash *Hash) Verify(b []byte, h string) error {
+func (hash *Hasher) Verify(b []byte, h string) error {
 	hash.Reset()
 	hash.Write(b)
 

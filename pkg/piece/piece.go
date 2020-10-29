@@ -3,9 +3,6 @@ package piece
 
 import "io"
 
-// Size is a default piece size
-const Size = 256 * 1024 // 256 kB
-
 // Offset calculates a file offset where piece should be read at
 func Offset(pieceSize, pieceNumber int64) int64 {
 	return pieceSize * pieceNumber

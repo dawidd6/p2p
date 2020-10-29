@@ -7,8 +7,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/dawidd6/p2p/pkg/piece"
-	"github.com/dawidd6/p2p/pkg/tracker"
+	"github.com/dawidd6/p2p/pkg/config"
 
 	"github.com/dawidd6/p2p/pkg/version"
 
@@ -52,7 +51,7 @@ var (
 				return err
 			}
 
-			err = torrent.Save(t)
+			err = torrent.Save(t, "", t.FileName)
 			if err != nil {
 				return err
 			}
@@ -209,11 +208,13 @@ var (
 				"UPLOADED_BYTES",
 				"RATIO",
 			)
-			for fileHash, torrentState := range response.Torrents {
-				fmt.Printf("%-64v  %-6v  %-9v  %-16v  %-16v  %-5.2f\n",
-					fileHash,
+			for _, torrentState := range response.States {
+				fmt.Printf("%-32v %-64v  %-6v  %-9v  %-16v  %-16v  %-16v  %-5.2f\n",
+					torrentState.FileName,
+					torrentState.FileHash,
 					torrentState.Paused,
 					torrentState.Completed,
+					torrentState.PeersCount,
 					torrentState.DownloadedBytes,
 					torrentState.UploadedBytes,
 					float32(torrentState.UploadedBytes)/float32(torrentState.DownloadedBytes),
@@ -233,10 +234,12 @@ var (
 )
 
 func main() {
-	daemonHost = cmdRoot.PersistentFlags().StringP("host", "l", daemon.Host, "Daemon listening host.")
-	daemonPort = cmdRoot.PersistentFlags().StringP("port", "p", daemon.Port, "Daemon listening port.")
-	trackerAddress = cmdCreate.Flags().StringP("tracker-address", "t", net.JoinHostPort(tracker.Host, tracker.Port), "Tracker address.")
-	pieceSize = cmdCreate.Flags().Int64P("piece-size", "s", piece.Size, "Piece size.")
+	conf := config.Default()
+
+	daemonHost = cmdRoot.PersistentFlags().StringP("host", "l", conf.DaemonHost, "Daemon listening host.")
+	daemonPort = cmdRoot.PersistentFlags().StringP("port", "p", conf.DaemonPort, "Daemon listening port.")
+	trackerAddress = cmdCreate.Flags().StringP("tracker-address", "t", net.JoinHostPort(conf.TrackerHost, conf.TrackerPort), "Tracker address.")
+	pieceSize = cmdCreate.Flags().Int64P("piece-size", "s", conf.PieceSize, "Piece size.")
 	withData = cmdDelete.Flags().BoolP("with-data", "d", false, "Delete also downloaded data from disk.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})

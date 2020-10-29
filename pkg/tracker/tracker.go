@@ -9,82 +9,76 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dawidd6/p2p/pkg/config"
+
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
-)
-
-const (
-	Host             = "127.0.0.1"
-	Port             = "8889"
-	AnnounceInterval = time.Second * 30
-	CleanInterval    = time.Second * 60
-	ConnTimeout      = time.Second * 5
 )
 
 var (
 	PeerFromContextError = errors.New("can't determine peer from context")
 )
 
-// Config holds all configurable aspects of tracker
-type Config struct {
-	Host             string
-	Port             string
-	AnnounceInterval time.Duration
-	CleanInterval    time.Duration
-}
-
 // Tracker represents tracker service
 type Tracker struct {
-	config  *Config
-	index   map[string]map[string]time.Time // fileHash peerAddress peerTimestamp
-	mutex   sync.RWMutex
+	conf *config.Config
+
+	index      map[string]map[string]time.Time // fileHash peerAddress peerTimestamp
+	indexMutex sync.RWMutex
+
 	cleaner *time.Ticker
+
 	UnimplementedTrackerServer
 }
 
 // Run starts tracker server
-func Run(config *Config) error {
+func Run(conf *config.Config) error {
 	tracker := &Tracker{
-		config:  config,
+		conf:    conf,
 		index:   make(map[string]map[string]time.Time),
-		cleaner: time.NewTicker(config.CleanInterval),
+		cleaner: time.NewTicker(conf.CleanInterval),
 	}
 
 	// Start cleaning peer index
-	go tracker.clean()
+	go tracker.cleaning()
 
 	// Listen on address
-	address := net.JoinHostPort(config.Host, config.Port)
+	address := net.JoinHostPort(conf.TrackerHost, conf.TrackerPort)
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
 	}
 
 	// Register and serve
-	server := grpc.NewServer(grpc.ConnectionTimeout(ConnTimeout))
+	server := grpc.NewServer()
 	RegisterTrackerServer(server, tracker)
 	return server.Serve(listener)
 }
 
-// clean prunes peers periodically
-func (tracker *Tracker) clean() {
+// cleaning prunes peers periodically
+func (tracker *Tracker) cleaning() {
 	for range tracker.cleaner.C {
-		tracker.mutex.Lock()
-		for fileHash := range tracker.index {
-			for peerAddress, peerTimestamp := range tracker.index[fileHash] {
-				// Delete peer entry
-				if time.Since(peerTimestamp) > tracker.config.AnnounceInterval*2 {
-					log.Println("clean", fileHash, peerAddress)
-					delete(tracker.index[fileHash], peerAddress)
-				}
-				// Delete torrent entry
-				if len(tracker.index[fileHash]) == 0 {
-					log.Println("clean", fileHash)
-					delete(tracker.index, fileHash)
-				}
+		tracker.indexMutex.Lock()
+		tracker.clean()
+		tracker.indexMutex.Unlock()
+	}
+}
+
+// clean prunes dangling peers
+func (tracker *Tracker) clean() {
+	for fileHash := range tracker.index {
+		for peerAddress, peerTimestamp := range tracker.index[fileHash] {
+			// Delete peer entry
+			if time.Since(peerTimestamp) > tracker.conf.CleanInterval {
+				log.Println("clean", fileHash, peerAddress)
+				delete(tracker.index[fileHash], peerAddress)
+			}
+			// Delete torrent entry
+			if len(tracker.index[fileHash]) == 0 {
+				log.Println("clean", fileHash)
+				delete(tracker.index, fileHash)
 			}
 		}
-		tracker.mutex.Unlock()
 	}
 }
 
@@ -104,24 +98,24 @@ func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*An
 
 	// Construct needed variables
 	peerAddress := net.JoinHostPort(host, req.PeerPort)
-	announceInterval := tracker.config.AnnounceInterval.Milliseconds() / 1000
+	announceInterval := tracker.conf.AnnounceInterval.Milliseconds() / 1000
 
 	log.Println("Announce", req.FileHash, peerAddress)
 
 	// Create torrent file hash entry in map, if does not exist
-	tracker.mutex.Lock()
+	tracker.indexMutex.Lock()
 	if _, ok := tracker.index[req.FileHash]; !ok {
 		tracker.index[req.FileHash] = make(map[string]time.Time)
 	}
-	tracker.mutex.Unlock()
+	tracker.indexMutex.Unlock()
 
 	// Add peer address into map
-	tracker.mutex.Lock()
+	tracker.indexMutex.Lock()
 	tracker.index[req.FileHash][peerAddress] = time.Now()
-	tracker.mutex.Unlock()
+	tracker.indexMutex.Unlock()
 
 	// Get list of peers for a torrent
-	tracker.mutex.RLock()
+	tracker.indexMutex.RLock()
 	peerAddresses := make([]string, 0, len(tracker.index[req.FileHash])-1)
 	for peerAddressKey := range tracker.index[req.FileHash] {
 		// Don't return announcing peer his own address
@@ -129,7 +123,7 @@ func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*An
 			peerAddresses = append(peerAddresses, peerAddressKey)
 		}
 	}
-	tracker.mutex.RUnlock()
+	tracker.indexMutex.RUnlock()
 
 	return &AnnounceResponse{
 		PeerAddresses:    peerAddresses,
