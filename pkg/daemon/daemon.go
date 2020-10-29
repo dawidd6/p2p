@@ -148,10 +148,8 @@ func (daemon *Daemon) announce(task *tasker.Task) error {
 	log.Println("announce", "start")
 	defer log.Println("announce", "stop")
 
-	// Connect to tracker with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), daemon.conf.AnnounceTimeout)
-	defer cancel()
-	conn, err := grpc.DialContext(ctx, task.Torrent.TrackerAddress, grpc.WithInsecure())
+	// Connect to tracker
+	conn, err := grpc.Dial(task.Torrent.TrackerAddress, grpc.WithInsecure())
 	if err != nil {
 		return err
 	}
@@ -162,9 +160,13 @@ func (daemon *Daemon) announce(task *tasker.Task) error {
 		PeerPort: daemon.conf.SeedPort,
 	}
 
+	// Call with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), daemon.conf.AnnounceTimeout)
+	defer cancel()
+
 	// Announce to tracker
 	client := tracker.NewTrackerClient(conn)
-	response, err := client.Announce(context.Background(), request)
+	response, err := client.Announce(ctx, request)
 	if err != nil {
 		return err
 	}
@@ -241,17 +243,19 @@ func (daemon *Daemon) fetch(task *tasker.Task, pieceNumber int64, pieceHash stri
 		PieceNumber: pieceNumber,
 	}
 
-	// Connect to peer with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), daemon.conf.FetchTimeout)
-	defer cancel()
-	conn, err := grpc.DialContext(ctx, peerAddr, grpc.WithInsecure())
+	// Connect to peer
+	conn, err := grpc.Dial(peerAddr, grpc.WithInsecure())
 	if err != nil {
 		return err
 	}
 
+	// Call with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), daemon.conf.FetchTimeout)
+	defer cancel()
+
 	// Get the piece from peer
 	client := NewSeederClient(conn)
-	response, err := client.Seed(context.Background(), request)
+	response, err := client.Seed(ctx, request)
 	if err != nil {
 		return err
 	}
