@@ -61,9 +61,9 @@ jobs:
           sleep 10s
 
           # Get statuses
-          docker run --network=p2p-network --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
+          docker run --network=p2p-network --tty $IMG \
             p2p status --host=daemon-seed --port=8881
-          docker run --network=p2p-network --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
+          docker run --network=p2p-network --tty $IMG \
             p2p status --host=daemon-leech --port=8882
 
           # Print logs
