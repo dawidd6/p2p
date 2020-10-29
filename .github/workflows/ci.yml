@@ -36,7 +36,7 @@ jobs:
 
           # Create torrent
           docker run --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
-            p2p create --piece-size=4096 --tracker-host=tracker --tracker-port=8889 go.sum
+            p2p create --piece-size=4096 --tracker-host=tracker go.sum
 
           # Start tracker
           docker run --network=p2p-network --name=tracker --detach $IMG \
