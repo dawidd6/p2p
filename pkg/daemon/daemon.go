@@ -222,11 +222,17 @@ func (daemon *Daemon) announcing(task *tasker.Task) {
 		log.Println(err)
 	}
 
-	// Keep announcing after specified interval
-	for range task.AnnounceTicker.C {
-		err = daemon.announce(task)
-		if err != nil {
-			log.Println(err)
+	for {
+		select {
+		// Exit if stop was requested
+		case <-task.AnnounceNotifier:
+			return
+		// Keep announcing after specified interval
+		case <-task.AnnounceTicker.C:
+			err = daemon.announce(task)
+			if err != nil {
+				log.Println(err)
+			}
 		}
 	}
 }
@@ -501,6 +507,7 @@ func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteRe
 	}
 
 	// Stop announcing torrent to tracker
+	task.AnnounceNotifier <- struct{}{}
 	task.AnnounceTicker.Stop()
 
 	// Finish any fetching workers

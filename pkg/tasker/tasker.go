@@ -29,6 +29,7 @@ type Task struct {
 	PeersMutex    sync.Mutex
 	Peers         map[string]int
 
+	AnnounceNotifier chan struct{}
 	AnnounceTicker   *time.Ticker
 	AnnounceInterval time.Duration
 
@@ -50,6 +51,7 @@ func New(torr *torrent.Torrent, conf *config.Config) *Task {
 
 		PeersNotifier: make(chan struct{}, 1),
 
+		AnnounceNotifier: make(chan struct{}),
 		AnnounceTicker:   time.NewTicker(conf.AnnounceInterval),
 		AnnounceInterval: conf.AnnounceInterval,
 
