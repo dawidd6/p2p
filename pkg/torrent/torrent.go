@@ -3,23 +3,17 @@ package torrent
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/dawidd6/p2p/pkg/hasher"
 	"github.com/dawidd6/p2p/pkg/piece"
 )
 
 const FileExtension = "torrent.json"
-
-var (
-	WrongExtensionError = errors.New("wrong torrent file extension")
-)
 
 // Create makes a new torrent from file
 func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error) {
@@ -68,13 +62,13 @@ func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error
 	}, nil
 }
 
-// Load reads torrent from given file
-func Load(filePath string) (*Torrent, error) {
-	if !strings.HasSuffix(filePath, FileExtension) {
-		return nil, WrongExtensionError
-	}
+func File(dir, name string) string {
+	return filepath.Join(dir, fmt.Sprintf("%s.%s", name, FileExtension))
+}
 
-	b, err := ioutil.ReadFile(filePath)
+// Load reads torrent from a reader
+func Read(reader io.Reader) (*Torrent, error) {
+	b, err := ioutil.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
@@ -89,26 +83,29 @@ func Load(filePath string) (*Torrent, error) {
 	return torrent, nil
 }
 
-// Save writes given torrent to a file
-func Save(torrent *Torrent, dir, fileName string) error {
-	filePath := filepath.Join(dir, fmt.Sprintf("%s.%s", fileName, FileExtension))
-
+// Save writes given torrent to a writer
+func Write(writer io.Writer, torrent *Torrent) error {
 	message, err := json.MarshalIndent(torrent, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	return ioutil.WriteFile(filePath, message, 0666)
+	_, err = writer.Write(message)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Verify checks if given file is indeed a torrent data file
-func Verify(torrent *Torrent, f *os.File) error {
+func Verify(reader io.ReaderAt, torrent *Torrent) error {
 	hash := hasher.New()
 
 	for i, pieceHash := range torrent.PieceHashes {
 		pieceNumber := int64(i)
 		pieceOffset := piece.Offset(torrent.PieceSize, pieceNumber)
-		pieceData, err := piece.Read(f, torrent.PieceSize, pieceOffset)
+		pieceData, err := piece.Read(reader, torrent.PieceSize, pieceOffset)
 		if err != nil {
 			return err
 		}

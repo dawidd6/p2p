@@ -28,12 +28,12 @@ var (
 )
 
 func main() {
-	cmdRoot.Flags().StringVarP(&conf.DaemonHost, "host", "l", conf.DaemonHost, "Daemon listening host.")
-	cmdRoot.Flags().StringVarP(&conf.DaemonPort, "port", "p", conf.DaemonPort, "Daemon listening port.")
-	cmdRoot.Flags().StringVarP(&conf.SeedHost, "seed-host", "L", conf.SeedHost, "Seed listening host.")
-	cmdRoot.Flags().StringVarP(&conf.SeedPort, "seed-port", "P", conf.SeedPort, "Seed listening port.")
-	cmdRoot.Flags().StringVarP(&conf.DownloadsDir, "downloads-dir", "d", conf.DownloadsDir, "Where to place downloaded files.")
-	cmdRoot.Flags().StringVarP(&conf.TorrentsDir, "torrents-dir", "t", conf.TorrentsDir, "Where to place torrent files.")
+	cmdRoot.Flags().StringVar(&conf.DaemonHost, "host", conf.DaemonHost, "Daemon listening host.")
+	cmdRoot.Flags().StringVar(&conf.DaemonPort, "port", conf.DaemonPort, "Daemon listening port.")
+	cmdRoot.Flags().StringVar(&conf.SeedHost, "seed-host", conf.SeedHost, "Seed listening host.")
+	cmdRoot.Flags().StringVar(&conf.SeedPort, "seed-port", conf.SeedPort, "Seed listening port.")
+	cmdRoot.Flags().StringVar(&conf.DownloadsDir, "downloads-dir", conf.DownloadsDir, "Where to place downloaded files.")
+	cmdRoot.Flags().StringVar(&conf.TorrentsDir, "torrents-dir", conf.TorrentsDir, "Where to place torrent files.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 

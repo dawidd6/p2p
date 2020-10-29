@@ -43,8 +43,8 @@ func (pool *Pool) Enqueue(job func()) {
 	pool.channel <- job
 }
 
-// Finish closes the channel and waits for all workers to end
-func (pool *Pool) Finish() {
+// Stop closes the channel and waits for all workers to end
+func (pool *Pool) Stop() {
 	if pool.channelOpen {
 		close(pool.channel)
 		pool.channelOpen = false

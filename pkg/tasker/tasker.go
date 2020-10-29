@@ -14,7 +14,9 @@ import (
 
 // Task holds all the info needed for a torrent process
 type Task struct {
-	File    *os.File
+	TorrentFile *os.File
+	DataFile    *os.File
+
 	Torrent *torrent.Torrent
 	State   *state.State
 

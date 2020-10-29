@@ -34,30 +34,46 @@ var (
 		Use:   "create FILE",
 		Short: "Create torrent file.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			filePath := args[0]
+			dataFilePath := args[0]
 
-			file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
+			dataFile, err := os.OpenFile(dataFilePath, os.O_RDONLY, 0666)
 			if err != nil {
 				return err
 			}
 
 			trackerAddress := net.JoinHostPort(conf.TrackerHost, conf.TrackerPort)
-			t, err := torrent.Create(file, conf.PieceSize, trackerAddress)
+			torr, err := torrent.Create(dataFile, conf.PieceSize, trackerAddress)
 			if err != nil {
 				return err
 			}
 
-			err = torrent.Verify(t, file)
+			torrentFilePath := torrent.File("", torr.FileName)
+			torrentFile, err := os.OpenFile(torrentFilePath, os.O_RDWR|os.O_CREATE, 0666)
 			if err != nil {
 				return err
 			}
 
-			err = torrent.Save(t, "", t.FileName)
+			err = torrent.Verify(dataFile, torr)
 			if err != nil {
 				return err
 			}
 
-			return file.Close()
+			err = torrent.Write(torrentFile, torr)
+			if err != nil {
+				return err
+			}
+
+			err = dataFile.Close()
+			if err != nil {
+				return err
+			}
+
+			err = torrentFile.Close()
+			if err != nil {
+				return err
+			}
+
+			return nil
 		},
 		Args: cobra.ExactArgs(1),
 	}
@@ -66,9 +82,19 @@ var (
 		Use:   "add TORRENT_FILE",
 		Short: "Add specified torrents to client.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			filePath := args[0]
+			torrentFilePath := args[0]
 
-			torr, err := torrent.Load(filePath)
+			torrentFile, err := os.OpenFile(torrentFilePath, os.O_RDONLY, 0666)
+			if err != nil {
+				return err
+			}
+
+			torr, err := torrent.Read(torrentFile)
+			if err != nil {
+				return err
+			}
+
+			err = torrentFile.Close()
 			if err != nil {
 				return err
 			}
@@ -246,15 +272,15 @@ var (
 )
 
 func main() {
-	cmdRoot.PersistentFlags().StringVarP(&conf.DaemonHost, "host", "l", conf.DaemonHost, "Daemon listening host.")
-	cmdRoot.PersistentFlags().StringVarP(&conf.DaemonPort, "port", "p", conf.DaemonPort, "Daemon listening port.")
-	cmdRoot.PersistentFlags().DurationVarP(&conf.CallTimeout, "call-timeout", "t", conf.CallTimeout, "Delete also downloaded data from disk.")
+	cmdRoot.PersistentFlags().StringVar(&conf.DaemonHost, "host", conf.DaemonHost, "Daemon listening host.")
+	cmdRoot.PersistentFlags().StringVar(&conf.DaemonPort, "port", conf.DaemonPort, "Daemon listening port.")
+	cmdRoot.PersistentFlags().DurationVar(&conf.CallTimeout, "call-timeout", conf.CallTimeout, "Delete also downloaded data from disk.")
 
-	cmdCreate.Flags().StringVarP(&conf.TrackerHost, "tracker-host", "l", conf.TrackerHost, "Tracker address host.")
-	cmdCreate.Flags().StringVarP(&conf.TrackerPort, "tracker-port", "p", conf.TrackerPort, "Tracker address port.")
-	cmdCreate.Flags().Int64VarP(&conf.PieceSize, "piece-size", "s", conf.PieceSize, "Piece size.")
+	cmdCreate.Flags().StringVar(&conf.TrackerHost, "tracker-host", conf.TrackerHost, "Tracker address host.")
+	cmdCreate.Flags().StringVar(&conf.TrackerPort, "tracker-port", conf.TrackerPort, "Tracker address port.")
+	cmdCreate.Flags().Int64Var(&conf.PieceSize, "piece-size", conf.PieceSize, "Piece size.")
 
-	cmdDelete.Flags().BoolVarP(&conf.DeleteWithData, "with-data", "d", conf.DeleteWithData, "Delete also downloaded data from disk.")
+	cmdDelete.Flags().BoolVar(&conf.DeleteWithData, "with-data", conf.DeleteWithData, "Delete also downloaded data from disk.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 	cmdRoot.AddCommand(

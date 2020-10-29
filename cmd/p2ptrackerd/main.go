@@ -29,10 +29,10 @@ var (
 )
 
 func main() {
-	cmdRoot.Flags().StringVarP(&conf.TrackerHost, "host", "l", conf.TrackerHost, "Tracker listening host.")
-	cmdRoot.Flags().StringVarP(&conf.TrackerPort, "port", "p", conf.TrackerPort, "Tracker listening port.")
-	cmdRoot.Flags().DurationVarP(&conf.AnnounceInterval, "announce-interval", "n", conf.AnnounceInterval, "Tracker announcing interval.")
-	cmdRoot.Flags().DurationVarP(&conf.CleanInterval, "clean-interval", "c", conf.CleanInterval, "Tracker dangling peers cleaning interval.")
+	cmdRoot.Flags().StringVar(&conf.TrackerHost, "host", conf.TrackerHost, "Tracker listening host.")
+	cmdRoot.Flags().StringVar(&conf.TrackerPort, "port", conf.TrackerPort, "Tracker listening port.")
+	cmdRoot.Flags().DurationVar(&conf.AnnounceInterval, "announce-interval", conf.AnnounceInterval, "Tracker announcing interval.")
+	cmdRoot.Flags().DurationVar(&conf.CleanInterval, "clean-interval", conf.CleanInterval, "Tracker dangling peers cleaning interval.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 
