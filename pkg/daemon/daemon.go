@@ -317,6 +317,15 @@ func (daemon *Daemon) peer(task *tasker.Task) string {
 
 // fetching should be called in separate goroutine
 func (daemon *Daemon) fetching(task *tasker.Task) {
+	// Check if torrent is already downloaded fully
+	err := torrent.Verify(task.DataFile, task.Torrent)
+	if err == nil {
+		task.State.DownloadedBytes = task.Torrent.FileSize
+		task.State.Completed = true
+		log.Println("seeding")
+		return
+	}
+
 	// Start a fetch loop
 	for {
 		// Start a worker pool
@@ -456,18 +465,10 @@ func (daemon *Daemon) add(torr *torrent.Torrent) error {
 	daemon.torrents[task.Torrent.FileHash] = task
 	daemon.torrentsMutex.Unlock()
 
-	// Check if torrent is already downloaded fully
-	err = torrent.Verify(task.DataFile, task.Torrent)
-	if err != nil {
-		// Start torrent fetching process
-		go daemon.fetching(task)
-	} else {
-		task.State.DownloadedBytes = task.Torrent.FileSize
-		task.State.Completed = true
-	}
-
 	// Keep announcing torrent to tracker
 	go daemon.announcing(task)
+	// Start torrent fetching process
+	go daemon.fetching(task)
 
 	return nil
 }
