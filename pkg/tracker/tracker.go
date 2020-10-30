@@ -4,6 +4,7 @@ package tracker
 import (
 	"context"
 	"errors"
+	"log"
 	"net"
 	"sync"
 	"time"
@@ -48,6 +49,8 @@ func Run(conf *config.Config) error {
 		return err
 	}
 
+	log.Println("Listening on", address)
+
 	// Register and serve
 	server := grpc.NewServer()
 	RegisterTrackerServer(server, tracker)
@@ -71,10 +74,12 @@ func (tracker *Tracker) clean() {
 		for peerAddress, peerTimestamp := range peerInfo {
 			// Delete peer entry
 			if now.Sub(peerTimestamp) > tracker.conf.AnnounceInterval*2 {
+				log.Println("Deleting peer", peerAddress, "from", fileHash)
 				delete(tracker.index[fileHash], peerAddress)
 			}
 			// Delete torrent entry
 			if len(tracker.index[fileHash]) == 0 {
+				log.Println("Deleting torrent", fileHash)
 				delete(tracker.index, fileHash)
 			}
 		}
@@ -98,6 +103,8 @@ func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*An
 	// Construct needed variables
 	peerAddress := net.JoinHostPort(host, req.PeerPort)
 	announceInterval := tracker.conf.AnnounceInterval.Milliseconds() / 1000
+
+	log.Println("Announcing", peerAddress, "for", req.FileHash)
 
 	// Create torrent file hash entry in map, if does not exist
 	tracker.indexMutex.Lock()

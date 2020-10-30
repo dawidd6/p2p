@@ -90,6 +90,8 @@ func Run(conf *config.Config) error {
 			channel <- err
 		}
 
+		log.Println("Listening on", address, "(daemon)")
+
 		server := grpc.NewServer()
 		RegisterDaemonServer(server, daemon)
 		channel <- server.Serve(listener)
@@ -102,6 +104,8 @@ func Run(conf *config.Config) error {
 		if err != nil {
 			channel <- err
 		}
+
+		log.Println("Listening on", address, "(seed)")
 
 		server := grpc.NewServer(grpc.UnaryInterceptor(daemon.seed))
 		RegisterSeederServer(server, daemon)
@@ -124,6 +128,8 @@ func (daemon *Daemon) restore() error {
 	if torrentFilePaths == nil {
 		return nil
 	}
+
+	log.Println("Found", len(torrentFilePaths), "torrents to restore")
 
 	// Add every found torrent back to the queue
 	for _, torrentFilePath := range torrentFilePaths {
@@ -157,6 +163,8 @@ func (daemon *Daemon) restore() error {
 
 // announce announces to tracker about having a torrent in the queue
 func (daemon *Daemon) announce(task *tasker.Task) error {
+	log.Println("Announcing", task.Torrent.FileHash, "to", task.Torrent.TrackerAddress)
+
 	// Connect to tracker
 	conn, err := grpc.Dial(task.Torrent.TrackerAddress, grpc.WithInsecure())
 	if err != nil {
@@ -222,6 +230,7 @@ func (daemon *Daemon) announcing(task *tasker.Task) {
 		select {
 		// Exit if stop was requested
 		case <-task.AnnounceNotifier.Wait():
+			log.Println("Stopping announcing of torrent", task.Torrent.FileHash)
 			return
 		// Keep announcing after specified interval
 		case <-task.AnnounceTicker.C:
@@ -235,6 +244,8 @@ func (daemon *Daemon) announcing(task *tasker.Task) {
 
 // fetch retrieves one piece from one peer
 func (daemon *Daemon) fetch(task *tasker.Task, pieceNumber int64, pieceHash string, pieceOffset int64, peerAddr string) error {
+	log.Println("Fetching", pieceNumber, "piece of", task.Torrent.FileHash, "from", peerAddr)
+
 	hash := hasher.New()
 
 	// Try reading piece from disk
@@ -319,6 +330,7 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 	// Check if torrent is already downloaded fully
 	err := torrent.Verify(task.DataFile, task.Torrent)
 	if err == nil {
+		log.Println("Already completed", task.Torrent.FileHash)
 		task.State.DownloadedBytes = task.Torrent.FileSize
 		task.State.Completed = true
 		return
@@ -327,6 +339,7 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 	// Start a fetch loop
 	for {
 		// Start a worker pool
+		log.Println("Starting worker pool")
 		task.WorkerPool.Start()
 
 		// Loop over torrent piece hashes
@@ -338,8 +351,11 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 			// Pause execution if desired or exit from function if torrent is deleted
 			select {
 			case <-task.PauseNotifier.Wait():
+				log.Println("Paused", task.Torrent.FileHash)
 				<-task.ResumeNotifier.Wait()
+				log.Println("Resumed", task.Torrent.FileHash)
 			case <-task.DeleteNotifier.Wait():
+				log.Println("Deleted", task.Torrent.FileHash)
 				return
 			default:
 			}
@@ -353,25 +369,28 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 				err := daemon.fetch(task, pieceNumber, pieceHash, pieceOffset, peerAddr)
 				if err != nil {
 					// Add peer failure
+					log.Println("Adding peer", peerAddr, "failure for", task.Torrent.FileHash)
 					task.PeersMutex.Lock()
 					task.Peers[peerAddr]++
 					task.PeersMutex.Unlock()
-					log.Println(err)
 				}
 			})
 		}
 
 		// Wait for all fetch workers to complete
+		log.Println("Stopping worker pool for", task.Torrent.FileHash)
 		task.WorkerPool.Stop()
 
 		// Verify if all downloaded pieces are correct
 		err := torrent.Verify(task.DataFile, task.Torrent)
 		if err != nil {
-			log.Println(err)
+			log.Println("Torrent", task.Torrent.FileHash, "has not been downloaded properly")
+			log.Println("Retrying torrent", task.Torrent.FileHash, "download")
 			continue
 		} else {
 			task.State.DownloadedBytes = task.Torrent.FileSize
 			task.State.Completed = true
+			log.Println("Torrent", task.Torrent.FileHash, "download complete")
 			return
 		}
 	}
@@ -406,6 +425,8 @@ func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse
 		return nil, TorrentPausedError
 	}
 
+	log.Println("Sending piece", req.PieceNumber, "of", req.FileHash)
+
 	// Read piece
 	pieceOffset := piece.Offset(task.Torrent.PieceSize, req.PieceNumber)
 	pieceData, err := piece.Read(task.DataFile, task.Torrent.PieceSize, pieceOffset)
@@ -434,6 +455,8 @@ func (daemon *Daemon) add(torr *torrent.Torrent) error {
 
 	// Create new task
 	task = tasker.New(torr, daemon.conf)
+
+	log.Println("Adding new torrent", task.Torrent.FileHash)
 
 	// Open or create the torrent data file
 	dataFilePath := task.Torrent.FileName
@@ -468,34 +491,23 @@ func (daemon *Daemon) add(torr *torrent.Torrent) error {
 	return nil
 }
 
-// Add is called by the client and it adds a new torrent to the queue
-func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, error) {
-	// Add torrent
-	err := daemon.add(req.Torrent)
-	if err != nil {
-		return nil, err
-	}
-
-	// Return to client
-	return &AddResponse{}, nil
-}
-
-// Delete is called by the client and it deletes a torrent from the queue
-func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteResponse, error) {
+func (daemon *Daemon) delete(fileHash string, withData bool) error {
 	var err error
 
 	// Check if torrent is present in queue
 	daemon.torrentsMutex.RLock()
-	task, ok := daemon.torrents[req.FileHash]
+	task, ok := daemon.torrents[fileHash]
 	daemon.torrentsMutex.RUnlock()
 	if !ok {
-		return nil, TorrentNotFoundError
+		return TorrentNotFoundError
 	}
 
 	// Delete torrent from queue
 	daemon.torrentsMutex.Lock()
-	delete(daemon.torrents, req.FileHash)
+	delete(daemon.torrents, task.Torrent.FileHash)
 	daemon.torrentsMutex.Unlock()
+
+	log.Println("Deleting torrent", task.Torrent.FileHash, "with data:", withData)
 
 	// Notify deletion, so we can exit the fetching loop
 	if !task.State.Completed {
@@ -510,27 +522,50 @@ func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteRe
 	task.WorkerPool.Stop()
 
 	// Remove downloaded torrent data if desired
-	if req.WithData {
+	if withData {
 		err = os.Remove(task.DataFile.Name())
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	// Close torrent data file
 	err = task.DataFile.Close()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Remove torrent file
 	err = os.Remove(task.TorrentFile.Name())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Close torrent file
 	err = task.TorrentFile.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Add is called by the client and it adds a new torrent to the queue
+func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, error) {
+	// Add torrent
+	err := daemon.add(req.Torrent)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return to client
+	return &AddResponse{}, nil
+}
+
+// Delete is called by the client and it deletes a torrent from the queue
+func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteResponse, error) {
+	// Delete torrent
+	err := daemon.delete(req.FileHash, req.WithData)
 	if err != nil {
 		return nil, err
 	}
