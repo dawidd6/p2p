@@ -27,13 +27,11 @@ func (pool *Pool) Start() {
 
 	for i := 0; i < pool.count; i++ {
 		pool.waitGroup.Add(1)
-
 		go func() {
-			defer pool.waitGroup.Done()
-
 			for job := range pool.channel {
 				job()
 			}
+			pool.waitGroup.Done()
 		}()
 	}
 }
