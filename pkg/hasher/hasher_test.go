@@ -10,9 +10,11 @@ import (
 func TestHasher(t *testing.T) {
 	data := []byte("hello there")
 	hash := hasher.New()
+
 	n, err := hash.Write(data)
 	assert.NoError(t, err)
 	assert.Equal(t, len(data), n)
+
 	checksum := hash.HexSum()
 	err = hash.Verify(data, checksum)
 	assert.NoError(t, err)
