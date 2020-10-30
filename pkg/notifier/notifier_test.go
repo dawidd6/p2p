@@ -8,8 +8,8 @@ import (
 	"github.com/dawidd6/p2p/pkg/notifier"
 )
 
-func TestNonBlocking(t *testing.T) {
-	notify := notifier.New(false)
+func TestNotBlocking(t *testing.T) {
+	notify := notifier.NewNotBlocking()
 	start := make(chan struct{})
 	stop := make(chan struct{})
 	count := 0
@@ -34,11 +34,11 @@ func TestNonBlocking(t *testing.T) {
 	<-stop
 	assert.Equal(t, 2, count)
 
-	notify.Wait()
+	<-notify.Wait()
 }
 
 func TestBlocking(t *testing.T) {
-	notify := notifier.New(true)
+	notify := notifier.NewBlocking()
 	start := make(chan struct{})
 	stop := make(chan struct{})
 	count := 0
@@ -57,7 +57,7 @@ func TestBlocking(t *testing.T) {
 	<-stop
 	assert.Equal(t, 1, count)
 
-	notify.Wait()
+	<-notify.Wait()
 
 	<-start
 	<-stop

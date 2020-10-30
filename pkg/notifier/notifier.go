@@ -4,13 +4,13 @@ type Notifier struct {
 	channel chan struct{}
 }
 
-func New(blocking bool) *Notifier {
-	if blocking {
-		return &Notifier{
-			channel: make(chan struct{}),
-		}
+func NewBlocking() *Notifier {
+	return &Notifier{
+		channel: make(chan struct{}),
 	}
+}
 
+func NewNotBlocking() *Notifier {
 	return &Notifier{
 		channel: make(chan struct{}, 1),
 	}
@@ -23,6 +23,6 @@ func (notifier *Notifier) Notify() {
 	notifier.channel <- struct{}{}
 }
 
-func (notifier *Notifier) Wait() {
-	<-notifier.channel
+func (notifier *Notifier) Wait() <-chan struct{} {
+	return notifier.channel
 }
