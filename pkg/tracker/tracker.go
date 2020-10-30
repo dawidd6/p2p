@@ -73,7 +73,7 @@ func (tracker *Tracker) clean() {
 	for fileHash, peerInfo := range tracker.index {
 		for peerAddress, peerTimestamp := range peerInfo {
 			// Delete peer entry
-			if now.Sub(peerTimestamp) > tracker.conf.AnnounceInterval*2 {
+			if now.Sub(peerTimestamp) > tracker.conf.AnnounceInterval+tracker.conf.AnnounceTolerance {
 				log.Println("Deleting peer", peerAddress, "from", fileHash)
 				delete(tracker.index[fileHash], peerAddress)
 			}

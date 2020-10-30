@@ -12,8 +12,9 @@ type Config struct {
 	TrackerHost string
 	TrackerPort string
 
-	AnnounceInterval time.Duration
-	CleanInterval    time.Duration
+	AnnounceTolerance time.Duration
+	AnnounceInterval  time.Duration
+	CleanInterval     time.Duration
 
 	DaemonHost string
 	DaemonPort string
@@ -43,8 +44,9 @@ func Default() *Config {
 		TrackerHost: "127.0.0.1",
 		TrackerPort: "8889",
 
-		AnnounceInterval: time.Second * 30,
-		CleanInterval:    time.Second * 60,
+		AnnounceTolerance: time.Second * 10,
+		AnnounceInterval:  time.Second * 30,
+		CleanInterval:     time.Second * 60,
 
 		DaemonHost: "127.0.0.1",
 		DaemonPort: "8888",
