@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test(t *testing.T) {
+func TestPool(t *testing.T) {
 	got := uint32(0)
 	expected := uint32(10)
 	pool := worker.New(2)
