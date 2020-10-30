@@ -192,14 +192,10 @@ func (daemon *Daemon) announce(task *tasker.Task) error {
 	for _, peerAddr := range response.PeerAddresses {
 		task.Peers[peerAddr] = 0
 	}
-	if len(task.PeersNotifier) == cap(task.PeersNotifier) {
-		// Drain channel if it's full
-		<-task.PeersNotifier
-	}
 	task.PeersMutex.Unlock()
 
 	// Notify about new peer list
-	task.PeersNotifier <- struct{}{}
+	task.PeersNotifier.Notify()
 
 	// Set announcing interval if changed and reset the ticker
 	announceInterval := time.Duration(response.AnnounceInterval) * time.Second
@@ -225,7 +221,7 @@ func (daemon *Daemon) announcing(task *tasker.Task) {
 	for {
 		select {
 		// Exit if stop was requested
-		case <-task.AnnounceNotifier:
+		case <-task.AnnounceNotifier.Wait():
 			return
 		// Keep announcing after specified interval
 		case <-task.AnnounceTicker.C:
@@ -314,7 +310,7 @@ func (daemon *Daemon) peer(task *tasker.Task) string {
 		task.PeersMutex.Unlock()
 
 		// No good peer were found, wait for new list from tracker
-		<-task.PeersNotifier
+		<-task.PeersNotifier.Wait()
 	}
 }
 
@@ -341,9 +337,9 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 
 			// Pause execution if desired or exit from function if torrent is deleted
 			select {
-			case <-task.PauseNotifier:
-				<-task.ResumeNotifier
-			case <-task.DeleteNotifier:
+			case <-task.PauseNotifier.Wait():
+				<-task.ResumeNotifier.Wait()
+			case <-task.DeleteNotifier.Wait():
 				return
 			default:
 			}
@@ -503,11 +499,11 @@ func (daemon *Daemon) Delete(ctx context.Context, req *DeleteRequest) (*DeleteRe
 
 	// Notify deletion, so we can exit the fetching loop
 	if !task.State.Completed {
-		task.DeleteNotifier <- struct{}{}
+		task.DeleteNotifier.Notify()
 	}
 
 	// Stop announcing torrent to tracker
-	task.AnnounceNotifier <- struct{}{}
+	task.AnnounceNotifier.Notify()
 	task.AnnounceTicker.Stop()
 
 	// Finish any fetching workers
@@ -595,7 +591,7 @@ func (daemon *Daemon) Resume(ctx context.Context, req *ResumeRequest) (*ResumeRe
 	// Resume torrent
 	task.State.Paused = false
 	if !task.State.Completed {
-		task.ResumeNotifier <- struct{}{}
+		task.ResumeNotifier.Notify()
 	}
 
 	// Return to client
@@ -620,7 +616,7 @@ func (daemon *Daemon) Pause(ctx context.Context, req *PauseRequest) (*PauseRespo
 	// Pause torrent
 	task.State.Paused = true
 	if !task.State.Completed {
-		task.PauseNotifier <- struct{}{}
+		task.PauseNotifier.Notify()
 	}
 
 	// Return to client
