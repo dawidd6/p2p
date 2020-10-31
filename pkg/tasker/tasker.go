@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dawidd6/p2p/pkg/notifier"
-
 	"github.com/dawidd6/p2p/pkg/config"
 
 	"github.com/dawidd6/p2p/pkg/state"
@@ -23,15 +21,15 @@ type Task struct {
 	Torrent *torrent.Torrent
 	State   *state.State
 
-	ResumeNotifier *notifier.Notifier
-	PauseNotifier  *notifier.Notifier
-	DeleteNotifier *notifier.Notifier
+	ResumeNotifier chan struct{}
+	PauseNotifier  chan struct{}
+	DeleteNotifier chan struct{}
 
-	PeersNotifier *notifier.Notifier
-	PeersMutex    sync.Mutex
-	Peers         map[string]int
+	PeersAvailable *sync.Cond
+	PeersMutex     sync.RWMutex
+	Peers          map[string]int
 
-	AnnounceNotifier *notifier.Notifier
+	AnnounceNotifier chan struct{}
 	AnnounceTicker   *time.Ticker
 	AnnounceInterval time.Duration
 
@@ -47,13 +45,13 @@ func New(torr *torrent.Torrent, conf *config.Config) *Task {
 			FileName: torr.FileName,
 		},
 
-		ResumeNotifier: notifier.NewBlocking(),
-		PauseNotifier:  notifier.NewBlocking(),
-		DeleteNotifier: notifier.NewBlocking(),
+		ResumeNotifier: make(chan struct{}),
+		PauseNotifier:  make(chan struct{}),
+		DeleteNotifier: make(chan struct{}),
 
-		PeersNotifier: notifier.NewNotBlocking(),
+		PeersAvailable: sync.NewCond(&sync.Mutex{}),
 
-		AnnounceNotifier: notifier.NewNotBlocking(),
+		AnnounceNotifier: make(chan struct{}),
 		AnnounceTicker:   time.NewTicker(conf.AnnounceInterval),
 		AnnounceInterval: conf.AnnounceInterval,
 

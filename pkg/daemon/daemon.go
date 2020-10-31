@@ -203,7 +203,7 @@ func (daemon *Daemon) announce(task *tasker.Task) error {
 	task.PeersMutex.Unlock()
 
 	// Notify about new peer list
-	task.PeersNotifier.Notify()
+	task.PeersAvailable.Broadcast()
 
 	// Set announcing interval if changed and reset the ticker
 	announceInterval := time.Duration(response.AnnounceInterval) * time.Second
@@ -229,7 +229,7 @@ func (daemon *Daemon) announcing(task *tasker.Task) {
 	for {
 		select {
 		// Exit if stop was requested
-		case <-task.AnnounceNotifier.Wait():
+		case <-task.AnnounceNotifier:
 			log.Println("Stopping announcing of torrent", task.Torrent.FileHash)
 			return
 		// Keep announcing after specified interval
@@ -307,21 +307,23 @@ func (daemon *Daemon) fetch(task *tasker.Task, pieceNumber int64, pieceHash stri
 	return nil
 }
 
-// peer blocks until a peer is available
+// peer blocks until a valid peer is available
 func (daemon *Daemon) peer(task *tasker.Task) string {
 	for {
-		task.PeersMutex.Lock()
+		task.PeersMutex.RLock()
 		for peerAddr, peerFailures := range task.Peers {
 			// If number of failures does not exceed the max, then return this peer address
 			if peerFailures < daemon.conf.MaxPeerFailures {
-				task.PeersMutex.Unlock()
+				task.PeersMutex.RUnlock()
 				return peerAddr
 			}
 		}
-		task.PeersMutex.Unlock()
+		task.PeersMutex.RUnlock()
 
 		// No good peer were found, wait for new list from tracker
-		<-task.PeersNotifier.Wait()
+		task.PeersAvailable.L.Lock()
+		task.PeersAvailable.Wait()
+		task.PeersAvailable.L.Unlock()
 	}
 }
 
@@ -350,21 +352,21 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 
 			// Pause execution if desired or exit from function if torrent is deleted
 			select {
-			case <-task.PauseNotifier.Wait():
+			case <-task.PauseNotifier:
 				log.Println("Paused", task.Torrent.FileHash)
-				<-task.ResumeNotifier.Wait()
+				<-task.ResumeNotifier
 				log.Println("Resumed", task.Torrent.FileHash)
-			case <-task.DeleteNotifier.Wait():
+			case <-task.DeleteNotifier:
 				log.Println("Deleted", task.Torrent.FileHash)
 				return
 			default:
 			}
 
-			// Get random peer address, wait if no peers available
-			peerAddr := daemon.peer(task)
-
-			// Create worker, wait if max count already
+			// Send a job to a free worker, wait if workers are busy
 			task.WorkerPool.Enqueue(func() {
+				// Get random peer address, wait if no peers available
+				peerAddr := daemon.peer(task)
+
 				// Fetch one piece
 				err := daemon.fetch(task, pieceNumber, pieceHash, pieceOffset, peerAddr)
 				if err != nil {
@@ -511,11 +513,11 @@ func (daemon *Daemon) delete(fileHash string, withData bool) error {
 
 	// Notify deletion, so we can exit the fetching loop
 	if !task.State.Completed {
-		task.DeleteNotifier.Notify()
+		task.DeleteNotifier <- struct{}{}
 	}
 
 	// Stop announcing torrent to tracker
-	task.AnnounceNotifier.Notify()
+	task.AnnounceNotifier <- struct{}{}
 	task.AnnounceTicker.Stop()
 
 	// Finish any fetching workers
@@ -626,7 +628,7 @@ func (daemon *Daemon) Resume(ctx context.Context, req *ResumeRequest) (*ResumeRe
 	// Resume torrent
 	task.State.Paused = false
 	if !task.State.Completed {
-		task.ResumeNotifier.Notify()
+		task.ResumeNotifier <- struct{}{}
 	}
 
 	// Return to client
@@ -651,7 +653,7 @@ func (daemon *Daemon) Pause(ctx context.Context, req *PauseRequest) (*PauseRespo
 	// Pause torrent
 	task.State.Paused = true
 	if !task.State.Completed {
-		task.PauseNotifier.Notify()
+		task.PauseNotifier <- struct{}{}
 	}
 
 	// Return to client
