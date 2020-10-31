@@ -41,7 +41,7 @@ jobs:
 
           # Start tracker
           docker run --network=$NETWORK --name=tracker --detach $IMG \
-            p2ptrackerd --host=0.0.0.0
+            p2ptrackerd --announce-interval=5s --host=0.0.0.0
 
           # Start daemons
           docker run --network=$NETWORK --name=daemon-seed-1 --volume=$PWD:$PWD --workdir=$PWD --detach $IMG \
