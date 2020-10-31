@@ -208,6 +208,7 @@ func (daemon *Daemon) announce(task *tasker.Task) error {
 	// Set announcing interval if changed and reset the ticker
 	announceInterval := time.Duration(response.AnnounceInterval) * time.Second
 	if task.AnnounceInterval != announceInterval {
+		log.Println("Setting announce interval", announceInterval, "for", task.Torrent.FileHash)
 		task.AnnounceInterval = announceInterval
 		task.AnnounceTicker.Reset(task.AnnounceInterval)
 	}
@@ -321,9 +322,11 @@ func (daemon *Daemon) peer(task *tasker.Task) string {
 		task.PeersMutex.RUnlock()
 
 		// No good peer were found, wait for new list from tracker
+		log.Println("Waiting for peers for", task.Torrent.FileHash)
 		task.PeersAvailable.L.Lock()
 		task.PeersAvailable.Wait()
 		task.PeersAvailable.L.Unlock()
+		log.Println("Got new peers for", task.Torrent.FileHash)
 	}
 }
 
