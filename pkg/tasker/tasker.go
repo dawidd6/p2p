@@ -53,17 +53,17 @@ func New(torr *torrent.Torrent, stat *state.State, conf *config.Config) *Task {
 			FileName: torr.FileName,
 		},
 
-		ResumeNotifier: make(chan struct{}),
-		PauseNotifier:  make(chan struct{}),
-		DeleteNotifier: make(chan struct{}),
+		ResumeNotifier: make(chan struct{}, 1),
+		PauseNotifier:  make(chan struct{}, 1),
+		DeleteNotifier: make(chan struct{}, 1),
 
 		PeersAvailable: sync.NewCond(&sync.Mutex{}),
 
-		AnnounceNotifier: make(chan struct{}),
+		AnnounceNotifier: make(chan struct{}, 1),
 		AnnounceTicker:   time.NewTicker(conf.AnnounceInterval),
 		AnnounceInterval: conf.AnnounceInterval,
 
-		SaveNotifier: make(chan struct{}),
+		SaveNotifier: make(chan struct{}, 1),
 		SaveTicker:   time.NewTicker(conf.SaveInterval),
 		SaveInterval: conf.AnnounceInterval,
 
