@@ -117,7 +117,7 @@ type UnsafeDaemonServer interface {
 	mustEmbedUnimplementedDaemonServer()
 }
 
-func RegisterDaemonServer(s *grpc.Server, srv DaemonServer) {
+func RegisterDaemonServer(s grpc.ServiceRegistrar, srv DaemonServer) {
 	s.RegisterService(&_Daemon_serviceDesc, srv)
 }
 
@@ -288,7 +288,7 @@ type UnsafeSeederServer interface {
 	mustEmbedUnimplementedSeederServer()
 }
 
-func RegisterSeederServer(s *grpc.Server, srv SeederServer) {
+func RegisterSeederServer(s grpc.ServiceRegistrar, srv SeederServer) {
 	s.RegisterService(&_Seeder_serviceDesc, srv)
 }
 

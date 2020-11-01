@@ -61,7 +61,7 @@ type UnsafeTrackerServer interface {
 	mustEmbedUnimplementedTrackerServer()
 }
 
-func RegisterTrackerServer(s *grpc.Server, srv TrackerServer) {
+func RegisterTrackerServer(s grpc.ServiceRegistrar, srv TrackerServer) {
 	s.RegisterService(&_Tracker_serviceDesc, srv)
 }
 
