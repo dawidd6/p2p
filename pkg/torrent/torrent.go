@@ -3,6 +3,7 @@ package torrent
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,6 +16,8 @@ import (
 
 // FileExtension is the default torrent file extension
 const FileExtension = "torrent.json"
+
+var FileSizeMismatchError = errors.New("recorded file size in torrent does not match the actual one")
 
 // Create makes a new torrent from file
 func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error) {
@@ -101,13 +104,22 @@ func Write(writer io.Writer, torrent *Torrent) error {
 }
 
 // Verify checks if given file is indeed a torrent data file
-func Verify(reader io.ReaderAt, torrent *Torrent) error {
+func Verify(file *os.File, torrent *Torrent) error {
 	hash := hasher.New()
+
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	if info.Size() != torrent.FileSize {
+		return FileSizeMismatchError
+	}
 
 	for i, pieceHash := range torrent.PieceHashes {
 		pieceNumber := int64(i)
 		pieceOffset := piece.Offset(torrent.PieceSize, pieceNumber)
-		pieceData, err := piece.Read(reader, torrent.PieceSize, pieceOffset)
+		pieceData, err := piece.Read(file, torrent.PieceSize, pieceOffset)
 		if err != nil {
 			return err
 		}
