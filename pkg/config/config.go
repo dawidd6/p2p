@@ -59,7 +59,7 @@ func Default() *Config {
 		DownloadsDir: ".",
 		TorrentsDir:  filepath.Join(os.Getenv("HOME"), ".p2p"),
 
-		MaxPeerFailures:     4,
+		MaxPeerFailures:     2, // In reality it is 5. Best to keep this as is, it's a bit racy
 		MaxSeedConnections:  4,
 		MaxFetchConnections: 4,
 
