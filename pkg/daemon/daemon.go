@@ -374,7 +374,6 @@ func (daemon *Daemon) peer(task *tasker.Task) string {
 		task.PeersAvailable.L.Lock()
 		task.PeersAvailable.Wait()
 		task.PeersAvailable.L.Unlock()
-		log.Println("Got new peers for", task.Torrent.FileHash)
 	}
 }
 
@@ -425,11 +424,11 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 			default:
 			}
 
-			// Get random peer address, wait if no peers available
-			peerAddr := daemon.peer(task)
-
 			// Send a job to a free worker, wait if workers are busy
 			task.WorkerPool.Enqueue(func() {
+				// Get random peer address, wait if no peers available
+				peerAddr := daemon.peer(task)
+
 				// Fetch one piece
 				err := daemon.fetch(task, pieceNumber, pieceHash, pieceOffset, peerAddr)
 				if err != nil {
