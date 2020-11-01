@@ -383,12 +383,22 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 	// Check if torrent is already downloaded fully
 	err := torrent.Verify(task.DataFile, task.Torrent)
 	if err == nil {
+		log.Println("Already completed", task.Torrent.FileHash)
 		task.StateMutex.Lock()
 		task.State.DownloadedBytes = task.Torrent.FileSize
 		task.State.Completed = true
 		task.StateMutex.Unlock()
-		log.Println("Already completed", task.Torrent.FileHash)
 		return
+	} else {
+		task.StateMutex.Lock()
+		task.State.Completed = false
+		task.StateMutex.Unlock()
+	}
+
+	// If initial torrent state is paused, wait for resume
+	if task.State.Paused {
+		log.Println("Started", task.Torrent.FileHash, "in paused state")
+		<-task.ResumeNotifier
 	}
 
 	// Start a fetch loop
@@ -441,13 +451,16 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 		if err != nil {
 			log.Println("Torrent", task.Torrent.FileHash, "has not been downloaded properly")
 			log.Println("Retrying torrent", task.Torrent.FileHash, "download")
+			task.StateMutex.Lock()
+			task.State.Completed = false
+			task.StateMutex.Unlock()
 			continue
 		} else {
+			log.Println("Torrent", task.Torrent.FileHash, "download complete")
 			task.StateMutex.Lock()
 			task.State.DownloadedBytes = task.Torrent.FileSize
 			task.State.Completed = true
 			task.StateMutex.Unlock()
-			log.Println("Torrent", task.Torrent.FileHash, "download complete")
 			return
 		}
 	}
@@ -465,40 +478,6 @@ func (daemon *Daemon) seed(ctx context.Context, req interface{}, info *grpc.Unar
 		<-daemon.seedWaiter
 		return res, err
 	}
-}
-
-// Seed is called by the daemon and it shares pieces with peers
-func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse, error) {
-	// Check if torrent is present in queue
-	daemon.torrentsMutex.RLock()
-	task, ok := daemon.torrents[req.FileHash]
-	daemon.torrentsMutex.RUnlock()
-	if !ok {
-		return nil, TorrentNotFoundError
-	}
-
-	// Return early if torrent is paused
-	if task.State.Paused {
-		return nil, TorrentPausedError
-	}
-
-	log.Println("Sending piece", req.PieceNumber, "of", req.FileHash)
-
-	// Read piece
-	pieceOffset := piece.Offset(task.Torrent.PieceSize, req.PieceNumber)
-	pieceData, err := piece.Read(task.DataFile, task.Torrent.PieceSize, pieceOffset)
-	if err != nil {
-		return nil, err
-	}
-
-	// Add uploaded bytes count and compute ratio
-	task.StateMutex.Lock()
-	task.State.UploadedBytes += int64(len(pieceData))
-	task.State.Ratio = float32(task.State.UploadedBytes) / float32(task.State.DownloadedBytes)
-	task.StateMutex.Unlock()
-
-	// Return to client
-	return &SeedResponse{PieceData: pieceData}, nil
 }
 
 // add adds a torrent to the queue
@@ -641,6 +620,40 @@ func (daemon *Daemon) delete(fileHash string, withData bool) error {
 	}
 
 	return nil
+}
+
+// Seed is called by the daemon and it shares pieces with peers
+func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse, error) {
+	// Check if torrent is present in queue
+	daemon.torrentsMutex.RLock()
+	task, ok := daemon.torrents[req.FileHash]
+	daemon.torrentsMutex.RUnlock()
+	if !ok {
+		return nil, TorrentNotFoundError
+	}
+
+	// Return early if torrent is paused
+	if task.State.Paused {
+		return nil, TorrentPausedError
+	}
+
+	log.Println("Sending piece", req.PieceNumber, "of", req.FileHash)
+
+	// Read piece
+	pieceOffset := piece.Offset(task.Torrent.PieceSize, req.PieceNumber)
+	pieceData, err := piece.Read(task.DataFile, task.Torrent.PieceSize, pieceOffset)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add uploaded bytes count and compute ratio
+	task.StateMutex.Lock()
+	task.State.UploadedBytes += int64(len(pieceData))
+	task.State.Ratio = float32(task.State.UploadedBytes) / float32(task.State.DownloadedBytes)
+	task.StateMutex.Unlock()
+
+	// Return to client
+	return &SeedResponse{PieceData: pieceData}, nil
 }
 
 // Add is called by the client and it adds a new torrent to the queue
