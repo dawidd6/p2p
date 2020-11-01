@@ -20,7 +20,9 @@ type Task struct {
 	StateFile   *os.File
 
 	Torrent *torrent.Torrent
-	State   *state.State
+
+	State      *state.State
+	StateMutex sync.RWMutex
 
 	ResumeNotifier chan struct{}
 	PauseNotifier  chan struct{}
@@ -45,6 +47,7 @@ type Task struct {
 func New(torr *torrent.Torrent, stat *state.State, conf *config.Config) *Task {
 	task := &Task{
 		Torrent: torr,
+
 		State: &state.State{
 			FileHash: torr.FileHash,
 			FileName: torr.FileName,

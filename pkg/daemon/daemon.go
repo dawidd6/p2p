@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/dawidd6/p2p/pkg/tasker"
@@ -263,7 +262,9 @@ func (daemon *Daemon) announce(task *tasker.Task) error {
 	}
 
 	// Set state peer count
+	task.StateMutex.Lock()
 	task.State.PeersCount = int64(len(task.Peers))
+	task.StateMutex.Unlock()
 
 	return nil
 }
@@ -346,8 +347,11 @@ func (daemon *Daemon) fetch(task *tasker.Task, pieceNumber int64, pieceHash stri
 		return err
 	}
 
-	// Add downloaded bytes count
-	atomic.AddInt64(&task.State.DownloadedBytes, int64(len(response.PieceData)))
+	// Add downloaded bytes count and compute ratio
+	task.StateMutex.Lock()
+	task.State.DownloadedBytes += int64(len(response.PieceData))
+	task.State.Ratio = float32(task.State.UploadedBytes) / float32(task.State.DownloadedBytes)
+	task.StateMutex.Unlock()
 
 	return nil
 }
@@ -379,9 +383,11 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 	// Check if torrent is already downloaded fully
 	err := torrent.Verify(task.DataFile, task.Torrent)
 	if err == nil {
-		log.Println("Already completed", task.Torrent.FileHash)
+		task.StateMutex.Lock()
 		task.State.DownloadedBytes = task.Torrent.FileSize
 		task.State.Completed = true
+		task.StateMutex.Unlock()
+		log.Println("Already completed", task.Torrent.FileHash)
 		return
 	}
 
@@ -437,8 +443,10 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 			log.Println("Retrying torrent", task.Torrent.FileHash, "download")
 			continue
 		} else {
+			task.StateMutex.Lock()
 			task.State.DownloadedBytes = task.Torrent.FileSize
 			task.State.Completed = true
+			task.StateMutex.Unlock()
 			log.Println("Torrent", task.Torrent.FileHash, "download complete")
 			return
 		}
@@ -483,8 +491,11 @@ func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse
 		return nil, err
 	}
 
-	// Add uploaded bytes count
-	atomic.AddInt64(&task.State.UploadedBytes, int64(len(pieceData)))
+	// Add uploaded bytes count and compute ratio
+	task.StateMutex.Lock()
+	task.State.UploadedBytes += int64(len(pieceData))
+	task.State.Ratio = float32(task.State.UploadedBytes) / float32(task.State.DownloadedBytes)
+	task.StateMutex.Unlock()
 
 	// Return to client
 	return &SeedResponse{PieceData: pieceData}, nil
@@ -574,9 +585,11 @@ func (daemon *Daemon) delete(fileHash string, withData bool) error {
 	log.Println("Deleting torrent", task.Torrent.FileHash, "with data:", withData)
 
 	// Notify deletion, so we can exit the fetching loop
+	task.StateMutex.RLock()
 	if !task.State.Completed {
 		task.DeleteNotifier <- struct{}{}
 	}
+	task.StateMutex.RUnlock()
 
 	// Stop announcing torrent to tracker
 	task.AnnounceNotifier <- struct{}{}
@@ -666,6 +679,10 @@ func (daemon *Daemon) Status(ctx context.Context, req *StatusRequest) (*StatusRe
 			return nil, TorrentNotFoundError
 		}
 
+		// Lock, return state, unlock
+		task.StateMutex.RLock()
+		defer task.StateMutex.RUnlock()
+
 		// Return to client
 		return &StatusResponse{
 			States: []*state.State{task.State},
@@ -676,8 +693,10 @@ func (daemon *Daemon) Status(ctx context.Context, req *StatusRequest) (*StatusRe
 	daemon.torrentsMutex.RLock()
 	index := 0
 	states := make([]*state.State, len(daemon.torrents))
-	for fileHash := range daemon.torrents {
-		states[index] = daemon.torrents[fileHash].State
+	for _, task := range daemon.torrents {
+		task.StateMutex.RLock()
+		states[index] = task.State
+		task.StateMutex.RUnlock()
 		index++
 	}
 	daemon.torrentsMutex.RUnlock()
@@ -697,6 +716,10 @@ func (daemon *Daemon) Resume(ctx context.Context, req *ResumeRequest) (*ResumeRe
 	if !ok {
 		return nil, TorrentNotFoundError
 	}
+
+	// Lock state for further operations on it
+	task.StateMutex.Lock()
+	defer task.StateMutex.Unlock()
 
 	// Return early if already resumed
 	if !task.State.Paused {
@@ -722,6 +745,10 @@ func (daemon *Daemon) Pause(ctx context.Context, req *PauseRequest) (*PauseRespo
 	if !ok {
 		return nil, TorrentNotFoundError
 	}
+
+	// Lock state for further operations on it
+	task.StateMutex.Lock()
+	defer task.StateMutex.Unlock()
 
 	// Return early if already paused
 	if task.State.Paused {

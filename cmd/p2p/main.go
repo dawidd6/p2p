@@ -261,7 +261,7 @@ var (
 					torrentState.PeersCount,
 					torrentState.DownloadedBytes,
 					torrentState.UploadedBytes,
-					float32(torrentState.UploadedBytes)/float32(torrentState.DownloadedBytes),
+					torrentState.Ratio,
 				)
 			}
 
