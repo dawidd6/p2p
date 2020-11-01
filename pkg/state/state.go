@@ -5,11 +5,9 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-
-	"github.com/dawidd6/p2p/pkg/torrent"
 )
 
-const FileExtension = ".state" + torrent.FileExtension
+const FileExtension = ".state.json"
 
 // Read reads state from a reader
 func Read(reader io.Reader) (*State, error) {
