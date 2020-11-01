@@ -17,6 +17,7 @@ import (
 type Task struct {
 	TorrentFile *os.File
 	DataFile    *os.File
+	StateFile   *os.File
 
 	Torrent *torrent.Torrent
 	State   *state.State
@@ -33,12 +34,16 @@ type Task struct {
 	AnnounceTicker   *time.Ticker
 	AnnounceInterval time.Duration
 
+	SaveNotifier chan struct{}
+	SaveTicker   *time.Ticker
+	SaveInterval time.Duration
+
 	WorkerPool *worker.Pool
 }
 
 // New returns a new Task instance
-func New(torr *torrent.Torrent, conf *config.Config) *Task {
-	return &Task{
+func New(torr *torrent.Torrent, stat *state.State, conf *config.Config) *Task {
+	task := &Task{
 		Torrent: torr,
 		State: &state.State{
 			FileHash: torr.FileHash,
@@ -55,6 +60,17 @@ func New(torr *torrent.Torrent, conf *config.Config) *Task {
 		AnnounceTicker:   time.NewTicker(conf.AnnounceInterval),
 		AnnounceInterval: conf.AnnounceInterval,
 
+		SaveNotifier: make(chan struct{}),
+		SaveTicker:   time.NewTicker(conf.SaveInterval),
+		SaveInterval: conf.AnnounceInterval,
+
 		WorkerPool: worker.New(conf.MaxFetchConnections),
 	}
+
+	// Used for state restoring
+	if stat != nil {
+		task.State = stat
+	}
+
+	return task
 }

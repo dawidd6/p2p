@@ -4,18 +4,16 @@ package torrent
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 
 	"github.com/dawidd6/p2p/pkg/hasher"
 	"github.com/dawidd6/p2p/pkg/piece"
 )
 
 // FileExtension is the default torrent file extension
-const FileExtension = "torrent.json"
+const FileExtension = ".torrent.json"
 
 var FileSizeMismatchError = errors.New("recorded file size in torrent does not match the actual one")
 
@@ -66,12 +64,7 @@ func Create(file *os.File, pieceSize int64, trackerAddr string) (*Torrent, error
 	}, nil
 }
 
-// File returns a file path to torrent file
-func File(dir, name string) string {
-	return filepath.Join(dir, fmt.Sprintf("%s.%s", name, FileExtension))
-}
-
-// Load reads torrent from a reader
+// Read reads torrent from a reader
 func Read(reader io.Reader) (*Torrent, error) {
 	b, err := ioutil.ReadAll(reader)
 	if err != nil {
@@ -88,7 +81,7 @@ func Read(reader io.Reader) (*Torrent, error) {
 	return torrent, nil
 }
 
-// Save writes given torrent to a writer
+// Write writes given torrent to a writer
 func Write(writer io.Writer, torrent *Torrent) error {
 	message, err := json.MarshalIndent(torrent, "", "  ")
 	if err != nil {

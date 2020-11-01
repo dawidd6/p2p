@@ -35,6 +35,8 @@ type Config struct {
 	FetchTimeout    time.Duration
 	CallTimeout     time.Duration
 
+	SaveInterval time.Duration
+
 	DeleteWithData bool
 }
 
@@ -66,6 +68,8 @@ func Default() *Config {
 		AnnounceTimeout: time.Second * 5,
 		FetchTimeout:    time.Second * 3,
 		CallTimeout:     time.Second * 5,
+
+		SaveInterval: time.Second * 3,
 
 		DeleteWithData: false,
 	}

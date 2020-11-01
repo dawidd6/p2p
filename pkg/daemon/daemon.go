@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -118,8 +119,8 @@ func Run(conf *config.Config) error {
 // restore reads saved torrent files from disk and adds them back to the queue
 func (daemon *Daemon) restore() error {
 	// Find all torrent files on disk in directory
-	glob := torrent.File(daemon.conf.TorrentsDir, "*")
-	torrentFilePaths, err := filepath.Glob(glob)
+	torrentGlob := filepath.Join(daemon.conf.TorrentsDir, "*"+torrent.FileExtension)
+	torrentFilePaths, err := filepath.Glob(torrentGlob)
 	if err != nil {
 		return err
 	}
@@ -132,9 +133,9 @@ func (daemon *Daemon) restore() error {
 	log.Println("Found", len(torrentFilePaths), "torrents to restore")
 
 	// Add every found torrent back to the queue
-	for _, torrentFilePath := range torrentFilePaths {
+	for i := range torrentFilePaths {
 		// Open torrent file
-		torrentFile, err := os.OpenFile(torrentFilePath, os.O_RDONLY, 0666)
+		torrentFile, err := os.OpenFile(torrentFilePaths[i], os.O_RDONLY, 0666)
 		if err != nil {
 			return err
 		}
@@ -145,20 +146,68 @@ func (daemon *Daemon) restore() error {
 			return err
 		}
 
+		// Open state file
+		stateFilePath := strings.TrimSuffix(torrentFilePaths[i], torrent.FileExtension) + state.FileExtension
+		stateFile, err := os.OpenFile(stateFilePath, os.O_RDONLY, 0666)
+		if err != nil {
+			return err
+		}
+
+		// Read the state from file
+		stat, err := state.Read(stateFile)
+		if err != nil {
+			return err
+		}
+
 		// Close torrent file, it is later reopened
 		err = torrentFile.Close()
 		if err != nil {
 			return err
 		}
 
+		// Close state file, it is later reopened
+		err = stateFile.Close()
+		if err != nil {
+			return err
+		}
+
 		// Add torrent to the queue
-		err = daemon.add(torr)
+		err = daemon.add(torr, stat)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// saving should be called in separate goroutine
+func (daemon *Daemon) saving(task *tasker.Task) {
+	for {
+		err := task.StateFile.Truncate(0)
+		if err != nil {
+			log.Println(err)
+		}
+
+		_, err = task.StateFile.Seek(0, 0)
+		if err != nil {
+			log.Println(err)
+		}
+
+		err = state.Write(task.StateFile, task.State)
+		if err != nil {
+			log.Println(err)
+		}
+
+		select {
+		// Exit if stop was requested
+		case <-task.SaveNotifier:
+			log.Println("Stopping saving state of torrent", task.Torrent.FileHash)
+			return
+		// Keep announcing after specified interval
+		case <-task.SaveTicker.C:
+		}
+	}
 }
 
 // announce announces to tracker about having a torrent in the queue
@@ -221,13 +270,12 @@ func (daemon *Daemon) announce(task *tasker.Task) error {
 
 // announcing should be called in separate goroutine
 func (daemon *Daemon) announcing(task *tasker.Task) {
-	// Make an initial announce
-	err := daemon.announce(task)
-	if err != nil {
-		log.Println(err)
-	}
-
 	for {
+		err := daemon.announce(task)
+		if err != nil {
+			log.Println(err)
+		}
+
 		select {
 		// Exit if stop was requested
 		case <-task.AnnounceNotifier:
@@ -235,10 +283,6 @@ func (daemon *Daemon) announcing(task *tasker.Task) {
 			return
 		// Keep announcing after specified interval
 		case <-task.AnnounceTicker.C:
-			err = daemon.announce(task)
-			if err != nil {
-				log.Println(err)
-			}
 		}
 	}
 }
@@ -447,7 +491,7 @@ func (daemon *Daemon) Seed(ctx context.Context, req *SeedRequest) (*SeedResponse
 }
 
 // add adds a torrent to the queue
-func (daemon *Daemon) add(torr *torrent.Torrent) error {
+func (daemon *Daemon) add(torr *torrent.Torrent, stat *state.State) error {
 	var err error
 
 	// Check if torrent is present in queue
@@ -459,7 +503,7 @@ func (daemon *Daemon) add(torr *torrent.Torrent) error {
 	}
 
 	// Create new task
-	task = tasker.New(torr, daemon.conf)
+	task = tasker.New(torr, stat, daemon.conf)
 
 	log.Println("Adding new torrent", task.Torrent.FileHash)
 
@@ -471,14 +515,27 @@ func (daemon *Daemon) add(torr *torrent.Torrent) error {
 	}
 
 	// Open the torrent file
-	torrentFilePath := torrent.File(daemon.conf.TorrentsDir, task.Torrent.FileHash)
+	torrentFilePath := filepath.Join(daemon.conf.TorrentsDir, task.Torrent.FileHash+torrent.FileExtension)
 	task.TorrentFile, err = os.OpenFile(torrentFilePath, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+
+	// Open the state file
+	stateFilePath := filepath.Join(daemon.conf.TorrentsDir, task.Torrent.FileHash+state.FileExtension)
+	task.StateFile, err = os.OpenFile(stateFilePath, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
 
 	// Save torrent file to disk
 	err = torrent.Write(task.TorrentFile, task.Torrent)
+	if err != nil {
+		return err
+	}
+
+	// Save torrent state to disk
+	err = state.Write(task.StateFile, task.State)
 	if err != nil {
 		return err
 	}
@@ -490,6 +547,8 @@ func (daemon *Daemon) add(torr *torrent.Torrent) error {
 
 	// Keep announcing torrent to tracker
 	go daemon.announcing(task)
+	// Keep saving torrent state to file
+	go daemon.saving(task)
 	// Start torrent fetching process
 	go daemon.fetching(task)
 
@@ -523,6 +582,10 @@ func (daemon *Daemon) delete(fileHash string, withData bool) error {
 	task.AnnounceNotifier <- struct{}{}
 	task.AnnounceTicker.Stop()
 
+	// Stop saving torrent state to file
+	task.SaveNotifier <- struct{}{}
+	task.SaveTicker.Stop()
+
 	// Finish any fetching workers
 	task.WorkerPool.Stop()
 
@@ -552,13 +615,25 @@ func (daemon *Daemon) delete(fileHash string, withData bool) error {
 		return err
 	}
 
+	// Remove state file
+	err = os.Remove(task.StateFile.Name())
+	if err != nil {
+		return err
+	}
+
+	// Close state file
+	err = task.StateFile.Close()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Add is called by the client and it adds a new torrent to the queue
 func (daemon *Daemon) Add(ctx context.Context, req *AddRequest) (*AddResponse, error) {
 	// Add torrent
-	err := daemon.add(req.Torrent)
+	err := daemon.add(req.Torrent, nil)
 	if err != nil {
 		return nil, err
 	}

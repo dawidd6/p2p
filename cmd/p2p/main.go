@@ -47,7 +47,7 @@ var (
 				return err
 			}
 
-			torrentFilePath := torrent.File("", torr.FileName)
+			torrentFilePath := torr.FileName + torrent.FileExtension
 			torrentFile, err := os.OpenFile(torrentFilePath, os.O_RDWR|os.O_CREATE, 0666)
 			if err != nil {
 				return err
