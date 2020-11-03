@@ -51,6 +51,7 @@ func New(torr *torrent.Torrent, stat *state.State, conf *config.Config) *Task {
 		State: &state.State{
 			FileHash: torr.FileHash,
 			FileName: torr.FileName,
+			FileSize: torr.FileSize,
 		},
 
 		ResumeNotifier: make(chan struct{}, 1),

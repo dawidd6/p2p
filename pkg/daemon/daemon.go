@@ -275,6 +275,10 @@ func (daemon *Daemon) announcing(task *tasker.Task) {
 		err := daemon.announce(task)
 		if err != nil {
 			log.Println(err)
+			// Reset peer count
+			task.StateMutex.Lock()
+			task.State.PeersCount = 0
+			task.StateMutex.Unlock()
 		}
 
 		select {

@@ -5,10 +5,11 @@ option go_package = "github.com/dawidd6/p2p/pkg/state";
 message State {
     string file_hash = 1;
     string file_name = 2;
-    int64 peers_count = 3;
-    int64 downloaded_bytes = 4;
-    int64 uploaded_bytes = 5;
-    float ratio = 6;
-    bool completed = 7;
-    bool paused = 8;
+    int64 file_size = 3;
+    int64 peers_count = 4;
+    int64 downloaded_bytes = 5;
+    int64 uploaded_bytes = 6;
+    float ratio = 7;
+    bool completed = 8;
+    bool paused = 9;
 }
