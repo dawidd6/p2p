@@ -37,12 +37,10 @@ var (
 
 // Daemon represents daemon service (with seed)
 type Daemon struct {
-	conf *config.Config
-
+	conf          *config.Config
 	torrents      map[string]*tasker.Task
 	torrentsMutex sync.RWMutex
-
-	seedWaiter chan struct{}
+	seedWaiter    chan struct{}
 
 	UnimplementedDaemonServer
 	UnimplementedSeederServer
