@@ -37,6 +37,13 @@ func Run(conf *config.Config) error {
 			address := net.JoinHostPort(conf.DBHost, conf.DBPort)
 			return redis.Dial("tcp", address)
 		},
+		TestOnBorrow: func(c redis.Conn, t time.Time) error {
+			_, err := c.Do("PING")
+			return err
+		},
+		MaxIdle:     3,
+		MaxActive:   10,
+		Wait:        true,
 	}
 
 	// Construct tracker
