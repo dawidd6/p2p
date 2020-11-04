@@ -31,6 +31,8 @@ var (
 func main() {
 	cmdRoot.Flags().StringVar(&conf.TrackerHost, "host", conf.TrackerHost, "Tracker listening host.")
 	cmdRoot.Flags().StringVar(&conf.TrackerPort, "port", conf.TrackerPort, "Tracker listening port.")
+	cmdRoot.Flags().StringVar(&conf.DBHost, "db-host", conf.DBHost, "Database listening host.")
+	cmdRoot.Flags().StringVar(&conf.DBPort, "db-port", conf.DBPort, "Database listening port.")
 	cmdRoot.Flags().DurationVar(&conf.AnnounceInterval, "announce-interval", conf.AnnounceInterval, "Tracker announcing interval.")
 	cmdRoot.Flags().DurationVar(&conf.CleanInterval, "clean-interval", conf.CleanInterval, "Tracker dangling peers cleaning interval.")
 

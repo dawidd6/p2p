@@ -31,13 +31,18 @@ type Tracker struct {
 
 // Run starts tracker server
 func Run(conf *config.Config) error {
-	tracker := &Tracker{
-		conf: conf,
-		dbPool: &redis.Pool{
-			Dial: func() (redis.Conn, error) {
-				return redis.Dial("tcp", "localhost:6379")
-			},
+	// Create connection pool to database
+	dbPool := &redis.Pool{
+		Dial: func() (redis.Conn, error) {
+			address := net.JoinHostPort(conf.DBHost, conf.DBPort)
+			return redis.Dial("tcp", address)
 		},
+	}
+
+	// Construct tracker
+	tracker := &Tracker{
+		conf:        conf,
+		dbPool:      dbPool,
 		cleanTicker: time.NewTicker(conf.CleanInterval),
 	}
 

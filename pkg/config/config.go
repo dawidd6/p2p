@@ -12,6 +12,9 @@ type Config struct {
 	TrackerHost string
 	TrackerPort string
 
+	DBHost string
+	DBPort string
+
 	AnnounceTolerance time.Duration
 	AnnounceInterval  time.Duration
 	CleanInterval     time.Duration
@@ -45,6 +48,9 @@ func Default() *Config {
 	return &Config{
 		TrackerHost: "127.0.0.1",
 		TrackerPort: "8889",
+
+		DBHost: "127.0.0.1",
+		DBPort: "6379",
 
 		AnnounceTolerance: time.Second * 10,
 		AnnounceInterval:  time.Second * 30,
