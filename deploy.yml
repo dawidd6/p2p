@@ -23,6 +23,11 @@
         rule: allow
         port: "8889"
         proto: tcp
+    - name: Start database
+      docker_container:
+        name: keydb
+        image: eqalpha/keydb
+        cleanup: yes
     - name: Start tracker
       docker_container:
         name: p2ptrackerd
@@ -33,7 +38,7 @@
         restart_policy: always
         ports:
           - 8889:8889
-        command: p2ptrackerd --host=0.0.0.0 --port=8889
+        command: p2ptrackerd --host=0.0.0.0 --db-host=keydb
     - name: Prune Docker leftovers
       docker_prune:
         images: yes
