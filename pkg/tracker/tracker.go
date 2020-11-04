@@ -6,12 +6,13 @@ import (
 	"errors"
 	"log"
 	"net"
-	"sync"
 	"time"
+
+	"github.com/gomodule/redigo/redis"
 
 	"github.com/dawidd6/p2p/pkg/config"
 
-	grpc "google.golang.org/grpc"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 )
 
@@ -21,11 +22,8 @@ var (
 
 // Tracker represents tracker service
 type Tracker struct {
-	conf *config.Config
-
-	index      map[string]map[string]time.Time // fileHash peerAddress peerTimestamp
-	indexMutex sync.RWMutex
-
+	conf        *config.Config
+	dbPool      *redis.Pool
 	cleanTicker *time.Ticker
 
 	UnimplementedTrackerServer
@@ -34,13 +32,14 @@ type Tracker struct {
 // Run starts tracker server
 func Run(conf *config.Config) error {
 	tracker := &Tracker{
-		conf:        conf,
-		index:       make(map[string]map[string]time.Time),
+		conf: conf,
+		dbPool: &redis.Pool{
+			Dial: func() (redis.Conn, error) {
+				return redis.Dial("tcp", "localhost:6379")
+			},
+		},
 		cleanTicker: time.NewTicker(conf.CleanInterval),
 	}
-
-	// Start cleaning peer index
-	go tracker.cleaning()
 
 	// Listen on address
 	address := net.JoinHostPort(conf.TrackerHost, conf.TrackerPort)
@@ -55,35 +54,6 @@ func Run(conf *config.Config) error {
 	server := grpc.NewServer()
 	RegisterTrackerServer(server, tracker)
 	return server.Serve(listener)
-}
-
-// cleaning prunes peers periodically
-func (tracker *Tracker) cleaning() {
-	for range tracker.cleanTicker.C {
-		tracker.indexMutex.Lock()
-		tracker.clean()
-		tracker.indexMutex.Unlock()
-	}
-}
-
-// clean prunes dangling peers
-func (tracker *Tracker) clean() {
-	now := time.Now()
-
-	for fileHash, peerInfo := range tracker.index {
-		for peerAddress, peerTimestamp := range peerInfo {
-			// Delete peer entry
-			if now.Sub(peerTimestamp) > tracker.conf.AnnounceInterval+tracker.conf.AnnounceTolerance {
-				log.Println("Deleting peer", peerAddress, "from", fileHash)
-				delete(tracker.index[fileHash], peerAddress)
-			}
-			// Delete torrent entry
-			if len(tracker.index[fileHash]) == 0 {
-				log.Println("Deleting torrent", fileHash)
-				delete(tracker.index, fileHash)
-			}
-		}
-	}
 }
 
 // Announce is called by the daemon and it adds the peer to index
@@ -103,32 +73,45 @@ func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*An
 	// Construct needed variables
 	peerAddress := net.JoinHostPort(host, req.PeerPort)
 	announceInterval := tracker.conf.AnnounceInterval.Milliseconds() / 1000
+	peerCutoff := (tracker.conf.AnnounceInterval + tracker.conf.AnnounceTolerance).Milliseconds() / 1000
 
 	log.Println("Announcing", peerAddress, "for", req.FileHash)
 
-	// Create torrent file hash entry in map, if does not exist
-	tracker.indexMutex.Lock()
-	if _, ok := tracker.index[req.FileHash]; !ok {
-		tracker.index[req.FileHash] = make(map[string]time.Time)
+	// Get database connection from pool
+	dbConn, err := tracker.dbPool.GetContext(ctx)
+	if err != nil {
+		return nil, err
 	}
-	tracker.indexMutex.Unlock()
+	// Close connection to database on exit from this function
+	defer dbConn.Close()
 
-	// Add peer address into map
-	tracker.indexMutex.Lock()
-	tracker.index[req.FileHash][peerAddress] = time.Now()
-	tracker.indexMutex.Unlock()
+	// Add peer address to set
+	_, err = dbConn.Do("SADD", req.FileHash, peerAddress)
+	if err != nil {
+		return nil, err
+	}
 
-	// Get list of peers for a torrent
-	tracker.indexMutex.RLock()
-	peerAddresses := make([]string, 0, len(tracker.index[req.FileHash])-1)
-	for peerAddr := range tracker.index[req.FileHash] {
-		// Don't return announcing peer their own address
-		if peerAddr != peerAddress {
-			peerAddresses = append(peerAddresses, peerAddr)
+	// Set peer address expire time
+	_, err = dbConn.Do("EXPIREMEMBER", req.FileHash, peerAddress, peerCutoff)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get peer addresses for given file hash
+	peerAddresses, err := redis.Strings(dbConn.Do("SMEMBERS", req.FileHash))
+	if err != nil {
+		return nil, err
+	}
+
+	// Remove announcing peer's address from the list
+	for i := range peerAddresses {
+		if peerAddresses[i] == peerAddress {
+			peerAddresses = append(peerAddresses[:i], peerAddresses[i+1:]...)
+			break
 		}
 	}
-	tracker.indexMutex.RUnlock()
 
+	// Return to client
 	return &AnnounceResponse{
 		PeerAddresses:    peerAddresses,
 		AnnounceInterval: announceInterval,
