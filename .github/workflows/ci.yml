@@ -31,6 +31,7 @@ jobs:
         env:
           IMG: p2p
           NETWORK: p2p-network
+          DBIMG: eqalpha/keydb
         run: |
           # Create network
           docker network create $NETWORK
@@ -39,9 +40,12 @@ jobs:
           docker run --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
             p2p create --piece-size=4096 --tracker-host=tracker go.sum
 
+          # Start database
+          docker run --network=$NETWORK --name=db --detach $DBIMG
+
           # Start tracker
           docker run --network=$NETWORK --name=tracker --detach $IMG \
-            p2ptrackerd --announce-interval=5s --host=0.0.0.0
+            p2ptrackerd --announce-interval=5s --host=0.0.0.0 --db-host=db
 
           # Start daemons
           docker run --network=$NETWORK --name=daemon-seed-1 --volume=$PWD:$PWD --workdir=$PWD --detach $IMG \
