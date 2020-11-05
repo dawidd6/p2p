@@ -3,7 +3,7 @@ VERSION ?= $(shell git describe --tags 2>/dev/null || git rev-parse HEAD)
 .PHONY: build
 build:
 	@mkdir -p bin
-	go build -ldflags "-s -w -X github.com/dawidd6/p2p/pkg/version.Version=$(VERSION)" -o bin ./cmd/...
+	CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/dawidd6/p2p/pkg/version.Version=$(VERSION)" -o bin ./cmd/...
 
 .PHONY: test
 test:
