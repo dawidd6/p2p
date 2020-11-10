@@ -40,4 +40,4 @@ jobs:
         uses: Azure/k8s-deploy@v1
         with:
           manifests: p2ptrackerd.yaml
-          images: dawidd6/tag:${{steps.tag.outputs.tag}}
+          images: dawidd6/p2p:${{steps.tag.outputs.tag}}
