@@ -11,20 +11,31 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Publish image
+      - name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1
+      - name: Build and push Docker image
         id: docker
         uses: matootie/github-docker@v3.1.0
         with:
           accessToken: ${{github.token}}
-      - name: Run playbook
-        uses: dawidd6/action-ansible-playbook@v2
+          tag: |
+            latest
+            ${{steps.tag.outputs.tag}}
+      - name: Create Kubernetes config
+        uses: Azure/k8s-set-context@v1
         with:
-          playbook: deploy.yml
-          key: ${{secrets.KEY}}
-          inventory: |
-            [all]
-            ${{secrets.DO_IP}} ansible_user=${{secrets.DO_USER}}
-          options: |
-            -e docker_image=${{steps.docker.outputs.imageURL}}
-            -e docker_username=${{github.actor}}
-            -e docker_password=${{github.token}}
+          kubeconfig: ${{secrets.DO_KUBE_CONFIG}}
+      - name: Create Docker registry secret
+        uses: Azure/k8s-create-secret@v1
+        with:
+          container-registry-url: docker.pkg.github.com
+          container-registry-username: ${{github.actor}}
+          container-registry-password: ${{github.token}}
+          secret-name: ghpr-creds
+      - name: Deploy to Kubernetes
+        uses: Azure/k8s-deploy@v1
+        with:
+          manifests: p2ptrackerd.yaml
+          images: ${{steps.docker.outputs.imageURL}}:${{steps.tag.outputs.tag}}
+          imagepullsecrets: ghpr-creds
