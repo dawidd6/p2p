@@ -37,7 +37,7 @@ spec:
         app: p2ptrackerd
     spec:
       containers:
-      - name: p2ptrackerd
+      - name: p2p
         image: dawidd6/p2p
         ports:
         - containerPort: 8080
