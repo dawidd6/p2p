@@ -15,7 +15,7 @@ jobs:
       - name: Build image
         run: make image
       - name: Test integration
-        run: make test
+        run: make integration-test
   proto:
     runs-on: ubuntu-latest
     steps:
