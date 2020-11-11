@@ -13,14 +13,19 @@ build:
 	@mkdir -p bin
 	go build -ldflags "-s -w -X github.com/dawidd6/p2p/pkg/version.Version=$(VERSION)" -o bin ./cmd/...
 
+# Test code
+.PHONY: test
+test:
+	go test -v -count=1 ./...
+
 # Build Docker image of the project
 .PHONY: image
 image:
 	docker build -t $(DOCKER_P2P_IMAGE) .
 
 # Test integration of the system in containers
-.PHONY: test
-test:
+.PHONY: integration-test
+integration-test:
 	# Create network
 	docker network inspect $(DOCKER_NETWORK) || docker network create $(DOCKER_NETWORK)
 	# Create torrent
