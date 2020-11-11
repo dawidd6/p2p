@@ -7,7 +7,16 @@ on:
   pull_request:
 
 jobs:
-  ci-proto:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build image
+        run: make image
+      - name: Test integration
+        run: make test
+  proto:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -20,66 +29,3 @@ jobs:
         run: make proto
       - name: Check changes
         run: git diff --exit-code
-  ci-docker:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build image
-        run: make image
-      - name: Test integration
-        env:
-          IMG: p2p
-          NETWORK: p2p-network
-          DBIMG: eqalpha/keydb
-        run: |
-          # Create network
-          docker network create $NETWORK
-
-          # Create torrent
-          docker run --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
-            p2p create --piece-size=4096 --tracker-host=tracker go.sum
-
-          # Start database
-          docker run --network=$NETWORK --name=db --detach $DBIMG
-
-          # Start tracker
-          docker run --network=$NETWORK --name=tracker --detach $IMG \
-            p2ptrackerd --announce-interval=5s --host=0.0.0.0 --db-host=db
-
-          # Start daemons
-          docker run --network=$NETWORK --name=daemon-seed-1 --volume=$PWD:$PWD --workdir=$PWD --detach $IMG \
-            p2pd --host=0.0.0.0 --port=8881 --seed-port=44441
-          docker run --network=$NETWORK --name=daemon-leech-1 --workdir=$PWD --detach $IMG \
-            p2pd --host=0.0.0.0 --port=8882 --seed-port=44442
-          docker run --network=$NETWORK --name=daemon-leech-2 --workdir=$PWD --detach $IMG \
-            p2pd --host=0.0.0.0 --port=8883 --seed-port=44443
-
-          # Add torrents
-          docker run --network=$NETWORK --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
-            p2p add --host=daemon-leech-1 --port=8882 go.sum.torrent.json
-          docker run --network=$NETWORK --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
-            p2p add --host=daemon-leech-2 --port=8883 go.sum.torrent.json
-          docker run --network=$NETWORK --volume=$PWD:$PWD --workdir=$PWD --tty $IMG \
-            p2p add --host=daemon-seed-1 --port=8881 go.sum.torrent.json
-
-          # Wait some time
-          sleep 10s
-
-          # Get statuses
-          docker run --network=$NETWORK --tty $IMG \
-            p2p status --host=daemon-seed-1 --port=8881
-          docker run --network=$NETWORK --tty $IMG \
-            p2p status --host=daemon-leech-1 --port=8882
-          docker run --network=$NETWORK --tty $IMG \
-            p2p status --host=daemon-leech-2 --port=8883
-
-          # Print logs
-          echo "[command]docker logs tracker"
-          docker logs tracker
-          echo "[command]docker logs daemon-seed-1"
-          docker logs daemon-seed-1
-          echo "[command]docker logs daemon-leech-1"
-          docker logs daemon-leech-1
-          echo "[command]docker logs daemon-leech-2"
-          docker logs daemon-leech-2
