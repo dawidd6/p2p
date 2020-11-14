@@ -16,6 +16,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+    "github.com/dustin/go-humanize"
 )
 
 var (
@@ -242,7 +243,7 @@ var (
 				return err
 			}
 
-			fmt.Printf("%-32v  %-64v  %-10v  %-6v  %-9v  %-6v  %-10v  %-8v  %-5v\n",
+			fmt.Printf("%-32v  %-64v  %-10v  %-6v  %-9v  %-6v  %-10v  %-8v  %-8v  %-5v\n",
 				"NAME",
 				"HASH",
 				"SIZE",
@@ -251,18 +252,20 @@ var (
 				"PEERS",
 				"DOWNLOADED",
 				"UPLOADED",
+                "PROGRESS",
 				"RATIO",
 			)
 			for _, torrentState := range response.States {
-				fmt.Printf("%-32v  %-64v  %-10v  %-6v  %-9v  %-6v  %-10v  %-8v  %-5.2f\n",
+				fmt.Printf("%-32v  %-64v  %-10v  %-6v  %-9v  %-6v  %-10v  %-8v  %-8.2f  %-5.2f\n",
 					torrentState.FileName,
 					torrentState.FileHash,
-					torrentState.FileSize,
+					humanize.IBytes(uint64(torrentState.FileSize)),
 					torrentState.Paused,
 					torrentState.Completed,
 					torrentState.PeersCount,
-					torrentState.DownloadedBytes,
-					torrentState.UploadedBytes,
+					humanize.IBytes(uint64(torrentState.DownloadedBytes)),
+					humanize.IBytes(uint64(torrentState.UploadedBytes)),
+					torrentState.ProgressPerc,
 					torrentState.Ratio,
 				)
 			}
