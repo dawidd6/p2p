@@ -68,10 +68,11 @@ integration-test:
 	# Print logs
 	docker logs tracker
 	docker logs daemon-seed-1
+	docker logs daemon-seed-2
 	docker logs daemon-leech-1
 	docker logs daemon-leech-2
 	# Stop all containers
-	docker stop db tracker daemon-seed-1 daemon-leech-1 daemon-leech-2
+	docker stop db tracker daemon-seed-1 daemon-seed-2 daemon-leech-1 daemon-leech-2
 	# Delete network
 	docker network rm $(DOCKER_NETWORK)
 
