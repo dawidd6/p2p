@@ -243,7 +243,7 @@ var (
 				return err
 			}
 
-			fmt.Printf("%-32v  %-64v  %-10v  %-6v  %-9v  %-6v  %-10v  %-8v  %-8v  %-5v\n",
+			fmt.Printf("%-32v  %-64v  %-10v  %-6v  %-9v  %-6v  %-10v  %-10v  %-8v  %-5v\n",
 				"NAME",
 				"HASH",
 				"SIZE",
@@ -256,7 +256,7 @@ var (
 				"RATIO",
 			)
 			for _, torrentState := range response.States {
-				fmt.Printf("%-32v  %-64v  %-10v  %-6v  %-9v  %-6v  %-10v  %-8v  %-8.2f  %-5.2f\n",
+				fmt.Printf("%-32v  %-64v  %-10v  %-6v  %-9v  %-6v  %-10v  %-10v  %-8.2f  %-5.2f\n",
 					torrentState.FileName,
 					torrentState.FileHash,
 					humanize.IBytes(uint64(torrentState.FileSize)),
