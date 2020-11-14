@@ -9,7 +9,8 @@ message State {
     int64 peers_count = 4;
     int64 downloaded_bytes = 5;
     int64 uploaded_bytes = 6;
-    float ratio = 7;
-    bool completed = 8;
-    bool paused = 9;
+    float progress_perc = 7;
+    float ratio = 8;
+    bool completed = 9;
+    bool paused = 10;
 }
