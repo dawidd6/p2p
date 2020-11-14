@@ -3,6 +3,7 @@ module github.com/dawidd6/p2p
 go 1.14
 
 require (
+	github.com/dustin/go-humanize v1.0.0
 	github.com/golang/protobuf v1.4.3
 	github.com/gomodule/redigo v1.8.2
 	github.com/spf13/cobra v1.1.1
