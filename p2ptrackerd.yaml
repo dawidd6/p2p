@@ -28,6 +28,11 @@ metadata:
     app: p2ptrackerd
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: p2ptrackerd
@@ -40,9 +45,20 @@ spec:
       - name: p2p
         image: dawidd6/p2p
         ports:
-        - containerPort: 8080
+        - name: p2ptrackerd-port
+          containerPort: 8080
         command: ["p2ptrackerd"]
         args: ["--host=0.0.0.0", "--port=8080", "--db-host=keydb-service", "--db-port=6379"]
+        readinessProbe:
+          tcpSocket:
+            port: p2ptrackerd-port
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: p2ptrackerd-port
+          initialDelaySeconds: 15
+          periodSeconds: 20
 ---
 apiVersion: v1
 kind: Service
