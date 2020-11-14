@@ -41,6 +41,7 @@ type Config struct {
 	SaveInterval time.Duration
 
 	DeleteWithData bool
+	PrintJSON      bool
 }
 
 // Default returns an instance of config with default values set
@@ -78,5 +79,6 @@ func Default() *Config {
 		SaveInterval: time.Second * 3,
 
 		DeleteWithData: false,
+		PrintJSON:      false,
 	}
 }
