@@ -45,18 +45,17 @@ spec:
       - name: p2p
         image: dawidd6/p2p
         ports:
-        - name: p2ptrackerd-port
-          containerPort: 8080
+        - containerPort: 8080
         command: ["p2ptrackerd"]
         args: ["--host=0.0.0.0", "--port=8080", "--db-host=keydb-service", "--db-port=6379"]
         readinessProbe:
           tcpSocket:
-            port: p2ptrackerd-port
+            port: 8080
           initialDelaySeconds: 5
           periodSeconds: 10
         livenessProbe:
           tcpSocket:
-            port: p2ptrackerd-port
+            port: 8080
           initialDelaySeconds: 15
           periodSeconds: 20
 ---
