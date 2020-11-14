@@ -352,6 +352,7 @@ func (daemon *Daemon) fetch(task *tasker.Task, pieceNumber int64, pieceHash stri
 	// Add downloaded bytes count and compute ratio
 	task.StateMutex.Lock()
 	task.State.DownloadedBytes += int64(len(response.PieceData))
+	task.State.ProgressPerc = (100 * float32(task.State.DownloadedBytes)) / float32(task.Torrent.FileSize)
 	task.State.Ratio = float32(task.State.UploadedBytes) / float32(task.State.DownloadedBytes)
 	task.StateMutex.Unlock()
 
@@ -387,6 +388,7 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 		log.Println("Already completed", task.Torrent.FileHash)
 		task.StateMutex.Lock()
 		task.State.DownloadedBytes = task.Torrent.FileSize
+		task.State.ProgressPerc = 100
 		task.State.Completed = true
 		task.StateMutex.Unlock()
 		return
@@ -452,14 +454,10 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 		if err != nil {
 			log.Println("Torrent", task.Torrent.FileHash, "has not been downloaded properly")
 			log.Println("Retrying torrent", task.Torrent.FileHash, "download")
-			task.StateMutex.Lock()
-			task.State.Completed = false
-			task.StateMutex.Unlock()
 			continue
 		} else {
 			log.Println("Torrent", task.Torrent.FileHash, "download complete")
 			task.StateMutex.Lock()
-			task.State.DownloadedBytes = task.Torrent.FileSize
 			task.State.Completed = true
 			task.StateMutex.Unlock()
 			return
@@ -530,6 +528,19 @@ func (daemon *Daemon) add(torr *torrent.Torrent, stat *state.State) error {
 	if err != nil {
 		return err
 	}
+
+    // Restored torrent, check if data file was deleted or is empty
+    if stat != nil {
+        dataFileStat, err := task.DataFile.Stat()
+        if err != nil {
+            return err
+        }
+
+        if dataFileStat.Size() != stat.DownloadedBytes {
+            task.State.DownloadedBytes = dataFileStat.Size()
+            task.State.ProgressPerc = (100 * float32(task.State.DownloadedBytes)) / float32(task.Torrent.FileSize)
+        }
+    }
 
 	// Assign task to torrent
 	daemon.torrentsMutex.Lock()
