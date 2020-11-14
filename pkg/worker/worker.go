@@ -3,6 +3,7 @@ package worker
 
 import (
 	"sync"
+    "time"
 )
 
 // Pool holds variables needed to coordinate the workers
@@ -29,6 +30,7 @@ func (pool *Pool) Start() {
 		pool.waitGroup.Add(1)
 		go func() {
 			for job := range pool.channel {
+                time.Sleep(time.Millisecond*100)
 				job()
 			}
 			pool.waitGroup.Done()
