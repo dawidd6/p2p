@@ -53,6 +53,18 @@ func Run(conf *config.Config) error {
 		cleanTicker: time.NewTicker(conf.CleanInterval),
 	}
 
+    // Test database connection
+    dbConn := dbPool.Get()
+    if dbConn.Err() != nil {
+        return dbConn.Err()
+    }
+
+    // Close database connection
+    err := dbConn.Close()
+    if err != nil {
+        return err
+    }
+
 	// Listen on address
 	address := net.JoinHostPort(conf.TrackerHost, conf.TrackerPort)
 	listener, err := net.Listen("tcp", address)
