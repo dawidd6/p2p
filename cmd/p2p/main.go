@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+    "encoding/json"
 
 	"github.com/dawidd6/p2p/pkg/config"
 
@@ -243,6 +244,18 @@ var (
 				return err
 			}
 
+            if conf.PrintJSON {
+                states, err := json.MarshalIndent(response.States, "", "  ")
+                if err != nil {
+                    return err
+
+                }
+
+                fmt.Println(string(states))
+
+                return nil
+            }
+
 			fmt.Printf("%-32v  %-64v  %-10v  %-6v  %-9v  %-6v  %-10v  %-10v  %-8v  %-5v\n",
 				"NAME",
 				"HASH",
@@ -288,6 +301,8 @@ func main() {
 	cmdCreate.Flags().Int64Var(&conf.PieceSize, "piece-size", conf.PieceSize, "Piece size.")
 
 	cmdDelete.Flags().BoolVar(&conf.DeleteWithData, "with-data", conf.DeleteWithData, "Delete also downloaded data from disk.")
+
+	cmdStatus.Flags().BoolVar(&conf.PrintJSON, "json", conf.PrintJSON, "Print status in JSON format.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 	cmdRoot.AddCommand(
