@@ -27,8 +27,7 @@ metadata:
   labels:
     app: p2ptrackerd
 spec:
-  minReplicas: 1
-  maxReplicas: 2
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
