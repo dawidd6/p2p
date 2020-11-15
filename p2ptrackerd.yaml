@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: keydb-deployment
+  name: keydb
   labels:
     app: keydb
 spec:
@@ -23,7 +23,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: p2ptrackerd-deployment
+  name: p2ptrackerd
   labels:
     app: p2ptrackerd
 spec:
@@ -63,7 +63,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: keydb-service
+  name: keydb
   labels:
     app: keydb
 spec:
@@ -75,7 +75,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: p2ptrackerd-service
+  name: p2ptrackerd
   labels:
     app: p2ptrackerd
 spec:
