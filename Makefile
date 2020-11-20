@@ -1,4 +1,5 @@
 VERSION ?= $(shell git describe --tags 2>/dev/null || git rev-parse HEAD)
+GOBIN ?= $(shell go env GOPATH)/bin
 
 DOCKER_NETWORK = p2p-network
 DOCKER_P2P_IMAGE = dawidd6/p2p
@@ -12,6 +13,11 @@ export CGO_ENABLED = 0
 build:
 	@mkdir -p bin
 	go build -ldflags "-s -w -X github.com/dawidd6/p2p/pkg/version.Version=$(VERSION)" -o bin ./cmd/...
+
+# Install binaries
+.PHONY: install
+install: build
+	cp bin/* $(GOBIN)
 
 # Test code
 .PHONY: test
