@@ -22,9 +22,8 @@ var (
 
 // Tracker represents tracker service
 type Tracker struct {
-	conf        *config.Config
-	dbPool      *redis.Pool
-	cleanTicker *time.Ticker
+	conf *config.Config
+	db   *redis.Pool
 
 	UnimplementedTrackerServer
 }
@@ -32,7 +31,7 @@ type Tracker struct {
 // Run starts tracker server
 func Run(conf *config.Config) error {
 	// Create connection pool to database
-	dbPool := &redis.Pool{
+	db := &redis.Pool{
 		Dial: func() (redis.Conn, error) {
 			address := net.JoinHostPort(conf.DBHost, conf.DBPort)
 			return redis.Dial("tcp", address)
@@ -41,43 +40,47 @@ func Run(conf *config.Config) error {
 			_, err := c.Do("PING")
 			return err
 		},
-		MaxIdle:     3,
-		MaxActive:   10,
 		Wait:        true,
 	}
 
 	// Construct tracker
 	tracker := &Tracker{
-		conf:        conf,
-		dbPool:      dbPool,
-		cleanTicker: time.NewTicker(conf.CleanInterval),
+        conf: conf,
+		db:   db,
 	}
 
-    // Test database connection
-    dbConn := dbPool.Get()
-    if dbConn.Err() != nil {
-        return dbConn.Err()
-    }
+	channel := make(chan error)
 
-    // Close database connection
-    err := dbConn.Close()
-    if err != nil {
-        return err
-    }
+    // Keep testing database connection and availability
+    go func() {
+        for {
+            conn := db.Get()
+            err := conn.Err()
+            if err != nil {
+                channel <- err
+            }
+            defer conn.Close()
 
-	// Listen on address
-	address := net.JoinHostPort(conf.TrackerHost, conf.TrackerPort)
-	listener, err := net.Listen("tcp", address)
-	if err != nil {
-		return err
-	}
+            time.Sleep(conf.DBCheckInterval)
+        }
+    }()
 
-	log.Println("Listening on", address)
+    // Start tracker server
+    go func() {
+        address := net.JoinHostPort(conf.TrackerHost, conf.TrackerPort)
+        listener, err := net.Listen("tcp", address)
+        if err != nil {
+            channel <- err
+        }
 
-	// Register and serve
-	server := grpc.NewServer()
-	RegisterTrackerServer(server, tracker)
-	return server.Serve(listener)
+        log.Println("Listening on", address)
+
+        server := grpc.NewServer()
+        RegisterTrackerServer(server, tracker)
+        channel <- server.Serve(listener)
+    }()
+
+    return <-channel
 }
 
 // Announce is called by the daemon and it adds the peer to index
@@ -102,27 +105,27 @@ func (tracker *Tracker) Announce(ctx context.Context, req *AnnounceRequest) (*An
 	log.Println("Announcing", peerAddress, "for", req.FileHash)
 
 	// Get database connection from pool
-	dbConn, err := tracker.dbPool.GetContext(ctx)
+	conn, err := tracker.db.GetContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	// Close connection to database on exit from this function
-	defer dbConn.Close()
+	defer conn.Close()
 
 	// Add peer address to set
-	_, err = dbConn.Do("SADD", req.FileHash, peerAddress)
+	_, err = conn.Do("SADD", req.FileHash, peerAddress)
 	if err != nil {
 		return nil, err
 	}
 
 	// Set peer address expire time
-	_, err = dbConn.Do("EXPIREMEMBER", req.FileHash, peerAddress, peerCutoff)
+	_, err = conn.Do("EXPIREMEMBER", req.FileHash, peerAddress, peerCutoff)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get peer addresses for given file hash
-	peerAddresses, err := redis.Strings(dbConn.Do("SMEMBERS", req.FileHash))
+	peerAddresses, err := redis.Strings(conn.Do("SMEMBERS", req.FileHash))
 	if err != nil {
 		return nil, err
 	}
