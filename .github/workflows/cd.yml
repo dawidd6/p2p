@@ -32,12 +32,3 @@ jobs:
           tags: |
             dawidd6/p2p:latest
             dawidd6/p2p:${{steps.tag.outputs.tag}}
-      - name: Create Kubernetes config
-        uses: Azure/k8s-set-context@v1
-        with:
-          kubeconfig: ${{secrets.DO_KUBE_CONFIG}}
-      - name: Deploy to Kubernetes
-        uses: Azure/k8s-deploy@v1
-        with:
-          manifests: p2ptrackerd.yaml
-          images: dawidd6/p2p:${{steps.tag.outputs.tag}}
