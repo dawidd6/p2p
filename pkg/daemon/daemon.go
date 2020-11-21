@@ -529,18 +529,18 @@ func (daemon *Daemon) add(torr *torrent.Torrent, stat *state.State) error {
 		return err
 	}
 
-    // Restored torrent, check if data file was deleted or is empty
-    if stat != nil {
-        dataFileStat, err := task.DataFile.Stat()
-        if err != nil {
-            return err
-        }
+	// Restored torrent, check if data file was deleted or is empty
+	if stat != nil {
+		dataFileStat, err := task.DataFile.Stat()
+		if err != nil {
+			return err
+		}
 
-        if dataFileStat.Size() != stat.DownloadedBytes {
-            task.State.DownloadedBytes = dataFileStat.Size()
-            task.State.ProgressPerc = (100 * float32(task.State.DownloadedBytes)) / float32(task.Torrent.FileSize)
-        }
-    }
+		if dataFileStat.Size() != stat.DownloadedBytes {
+			task.State.DownloadedBytes = dataFileStat.Size()
+			task.State.ProgressPerc = (100 * float32(task.State.DownloadedBytes)) / float32(task.Torrent.FileSize)
+		}
+	}
 
 	// Assign task to torrent
 	daemon.torrentsMutex.Lock()

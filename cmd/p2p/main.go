@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"os"
-    "encoding/json"
 
 	"github.com/dawidd6/p2p/pkg/config"
 
@@ -15,16 +15,16 @@ import (
 	"github.com/dawidd6/p2p/pkg/daemon"
 	"github.com/dawidd6/p2p/pkg/torrent"
 
+	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
-    "github.com/dustin/go-humanize"
 )
 
 var (
 	cmdRoot = &cobra.Command{
 		Use:     "p2p",
 		Short:   "P2P file sharing system based on gRPC.",
-		Version: version.Version,
+		Version: cmd.Version,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -244,17 +244,17 @@ var (
 				return err
 			}
 
-            if conf.PrintJSON {
-                states, err := json.MarshalIndent(response.States, "", "  ")
-                if err != nil {
-                    return err
+			if conf.PrintJSON {
+				states, err := json.MarshalIndent(response.States, "", "  ")
+				if err != nil {
+					return err
 
-                }
+				}
 
-                fmt.Println(string(states))
+				fmt.Println(string(states))
 
-                return nil
-            }
+				return nil
+			}
 
 			fmt.Printf("%-32v  %-64v  %-10v  %-6v  %-9v  %-6v  %-10v  %-10v  %-8v  %-5v\n",
 				"NAME",
@@ -265,7 +265,7 @@ var (
 				"PEERS",
 				"DOWNLOADED",
 				"UPLOADED",
-                "PROGRESS",
+				"PROGRESS",
 				"RATIO",
 			)
 			for _, torrentState := range response.States {

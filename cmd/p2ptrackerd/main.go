@@ -16,7 +16,7 @@ var (
 	cmdRoot = &cobra.Command{
 		Use:     "p2ptrackerd",
 		Short:   "P2P file sharing system based on gRPC (tracker).",
-		Version: version.Version,
+		Version: cmd.Version,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return tracker.Run(conf)
 		},

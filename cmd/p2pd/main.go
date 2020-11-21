@@ -15,7 +15,7 @@ var (
 	cmdRoot = &cobra.Command{
 		Use:     "p2pd",
 		Short:   "P2P file sharing system based on gRPC (daemon).",
-		Version: version.Version,
+		Version: cmd.Version,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return daemon.Run(conf)
 		},

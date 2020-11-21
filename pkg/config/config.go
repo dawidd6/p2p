@@ -15,7 +15,7 @@ type Config struct {
 	DBHost string
 	DBPort string
 
-    DBCheckInterval   time.Duration
+	DBCheckInterval   time.Duration
 	AnnounceTolerance time.Duration
 	AnnounceInterval  time.Duration
 	CleanInterval     time.Duration

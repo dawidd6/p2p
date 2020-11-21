@@ -40,47 +40,47 @@ func Run(conf *config.Config) error {
 			_, err := c.Do("PING")
 			return err
 		},
-		Wait:        true,
+		Wait: true,
 	}
 
 	// Construct tracker
 	tracker := &Tracker{
-        conf: conf,
+		conf: conf,
 		db:   db,
 	}
 
 	channel := make(chan error)
 
-    // Keep testing database connection and availability
-    go func() {
-        for {
-            conn := db.Get()
-            err := conn.Err()
-            if err != nil {
-                channel <- err
-            }
-            defer conn.Close()
+	// Keep testing database connection and availability
+	go func() {
+		for {
+			conn := db.Get()
+			err := conn.Err()
+			if err != nil {
+				channel <- err
+			}
+			defer conn.Close()
 
-            time.Sleep(conf.DBCheckInterval)
-        }
-    }()
+			time.Sleep(conf.DBCheckInterval)
+		}
+	}()
 
-    // Start tracker server
-    go func() {
-        address := net.JoinHostPort(conf.TrackerHost, conf.TrackerPort)
-        listener, err := net.Listen("tcp", address)
-        if err != nil {
-            channel <- err
-        }
+	// Start tracker server
+	go func() {
+		address := net.JoinHostPort(conf.TrackerHost, conf.TrackerPort)
+		listener, err := net.Listen("tcp", address)
+		if err != nil {
+			channel <- err
+		}
 
-        log.Println("Listening on", address)
+		log.Println("Listening on", address)
 
-        server := grpc.NewServer()
-        RegisterTrackerServer(server, tracker)
-        channel <- server.Serve(listener)
-    }()
+		server := grpc.NewServer()
+		RegisterTrackerServer(server, tracker)
+		channel <- server.Serve(listener)
+	}()
 
-    return <-channel
+	return <-channel
 }
 
 // Announce is called by the daemon and it adds the peer to index
