@@ -34,6 +34,10 @@ func main() {
 	cmdRoot.Flags().StringVar(&conf.SeedPort, "seed-port", conf.SeedPort, "Seed listening port.")
 	cmdRoot.Flags().StringVar(&conf.DownloadsDir, "downloads-dir", conf.DownloadsDir, "Where to place downloaded files.")
 	cmdRoot.Flags().StringVar(&conf.TorrentsDir, "torrents-dir", conf.TorrentsDir, "Where to place torrent files.")
+	cmdRoot.Flags().DurationVar(&conf.SaveInterval, "save-interval", conf.SaveInterval, "How often to save torrent state.")
+	cmdRoot.Flags().IntVar(&conf.MaxPeerFailures, "max-peer-failures", conf.MaxPeerFailures, "Max peer failures.")
+	cmdRoot.Flags().IntVar(&conf.MaxSeedConnections, "max-seed-connections", conf.MaxSeedConnections, "Max concurrent seeding connections per torrent.")
+	cmdRoot.Flags().IntVar(&conf.MaxFetchConnections, "max-fetch-connections", conf.MaxFetchConnections, "Max concurrent fetching connections per torrent.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 

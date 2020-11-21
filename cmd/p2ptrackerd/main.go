@@ -34,7 +34,8 @@ func main() {
 	cmdRoot.Flags().StringVar(&conf.DBHost, "db-host", conf.DBHost, "Database listening host.")
 	cmdRoot.Flags().StringVar(&conf.DBPort, "db-port", conf.DBPort, "Database listening port.")
 	cmdRoot.Flags().DurationVar(&conf.AnnounceInterval, "announce-interval", conf.AnnounceInterval, "Tracker announcing interval.")
-	cmdRoot.Flags().DurationVar(&conf.CleanInterval, "clean-interval", conf.CleanInterval, "Tracker dangling peers cleaning interval.")
+	cmdRoot.Flags().DurationVar(&conf.AnnounceTolerance, "announce-tolerance", conf.AnnounceTolerance, "Tracker announcing tolerance.")
+	cmdRoot.Flags().DurationVar(&conf.DBCheckInterval, "db-check-interval", conf.DBCheckInterval, "Database checking interval.")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 
