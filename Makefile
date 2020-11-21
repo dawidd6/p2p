@@ -12,7 +12,7 @@ export CGO_ENABLED = 0
 .PHONY: build
 build:
 	@mkdir -p bin
-	go build -ldflags "-s -w -X github.com/dawidd6/p2p/pkg/version.Version=$(VERSION)" -o bin ./cmd/...
+	go build -ldflags "-s -w -X github.com/dawidd6/p2p/cmd.Version=$(VERSION)" -o bin ./cmd/...
 
 # Install binaries
 .PHONY: install

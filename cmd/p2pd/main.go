@@ -5,7 +5,7 @@ import (
 
 	"github.com/dawidd6/p2p/pkg/config"
 
-	"github.com/dawidd6/p2p/pkg/version"
+	"github.com/dawidd6/p2p/cmd"
 
 	"github.com/dawidd6/p2p/pkg/daemon"
 	"github.com/spf13/cobra"
