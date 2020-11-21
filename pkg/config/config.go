@@ -18,7 +18,6 @@ type Config struct {
 	DBCheckInterval   time.Duration
 	AnnounceTolerance time.Duration
 	AnnounceInterval  time.Duration
-	CleanInterval     time.Duration
 
 	DaemonHost string
 	DaemonPort string
@@ -57,7 +56,6 @@ func Default() *Config {
 		DBCheckInterval:   time.Second * 10,
 		AnnounceTolerance: time.Second * 10,
 		AnnounceInterval:  time.Second * 30,
-		CleanInterval:     time.Second * 60,
 
 		DaemonHost: "127.0.0.1",
 		DaemonPort: "8888",
