@@ -23,7 +23,7 @@ import (
 var (
 	cmdRoot = &cobra.Command{
 		Use:     "p2p",
-		Short:   "P2P file sharing system based on gRPC (client).",
+		Short:   "P2P file sharing system based on gRPC (client)",
 		Version: cmd.Version,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -34,7 +34,7 @@ var (
 
 	cmdCreate = &cobra.Command{
 		Use:   "create DATA_FILE",
-		Short: "Create a torrent file from given data file.",
+		Short: "Create a torrent file from given data file",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dataFilePath := args[0]
 
@@ -82,7 +82,7 @@ var (
 
 	cmdAdd = &cobra.Command{
 		Use:   "add TORRENT_FILE",
-		Short: "Add specified torrent to the queue.",
+		Short: "Add specified torrent to the queue",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			torrentFilePath := args[0]
 
@@ -127,7 +127,7 @@ var (
 
 	cmdDelete = &cobra.Command{
 		Use:   "delete FILE_HASH",
-		Short: "Delete specified torrent from the queue by file hash.",
+		Short: "Delete specified torrent from the queue by file hash",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fileHash := args[0]
 
@@ -158,7 +158,7 @@ var (
 
 	cmdPause = &cobra.Command{
 		Use:   "pause FILE_HASH",
-		Short: "Pause specified torrent in the queue by file hash.",
+		Short: "Pause specified torrent in the queue by file hash",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fileHash := args[0]
 
@@ -188,7 +188,7 @@ var (
 
 	cmdResume = &cobra.Command{
 		Use:   "resume FILE_HASH",
-		Short: "Resume specified torrent in the queue by file hash.",
+		Short: "Resume specified torrent in the queue by file hash",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fileHash := args[0]
 
@@ -218,7 +218,7 @@ var (
 
 	cmdStatus = &cobra.Command{
 		Use:   "status [FILE_HASH]",
-		Short: "Get status of a torrent (or all torrents) in the queue.",
+		Short: "Get status of a torrent (or all torrents) in the queue",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fileHash := ""
 			if len(args) > 0 {
@@ -292,17 +292,17 @@ var (
 )
 
 func main() {
-	cmdRoot.PersistentFlags().StringVar(&conf.DaemonHost, "host", conf.DaemonHost, "Daemon listening host.")
-	cmdRoot.PersistentFlags().StringVar(&conf.DaemonPort, "port", conf.DaemonPort, "Daemon listening port.")
-	cmdRoot.PersistentFlags().DurationVar(&conf.CallTimeout, "call-timeout", conf.CallTimeout, "Client call timeout.")
+	cmdRoot.PersistentFlags().StringVar(&conf.DaemonHost, "host", conf.DaemonHost, "daemon listening host")
+	cmdRoot.PersistentFlags().StringVar(&conf.DaemonPort, "port", conf.DaemonPort, "daemon listening port")
+	cmdRoot.PersistentFlags().DurationVar(&conf.CallTimeout, "call-timeout", conf.CallTimeout, "client call timeout")
 
-	cmdCreate.Flags().StringVar(&conf.TrackerHost, "tracker-host", conf.TrackerHost, "Tracker address host.")
-	cmdCreate.Flags().StringVar(&conf.TrackerPort, "tracker-port", conf.TrackerPort, "Tracker address port.")
-	cmdCreate.Flags().Int64Var(&conf.PieceSize, "piece-size", conf.PieceSize, "Piece size.")
+	cmdCreate.Flags().StringVar(&conf.TrackerHost, "tracker-host", conf.TrackerHost, "tracker address host")
+	cmdCreate.Flags().StringVar(&conf.TrackerPort, "tracker-port", conf.TrackerPort, "tracker address port")
+	cmdCreate.Flags().Int64Var(&conf.PieceSize, "piece-size", conf.PieceSize, "piece size")
 
-	cmdDelete.Flags().BoolVar(&conf.DeleteWithData, "with-data", conf.DeleteWithData, "Delete also downloaded data from disk.")
+	cmdDelete.Flags().BoolVar(&conf.DeleteWithData, "with-data", conf.DeleteWithData, "delete also downloaded data from disk")
 
-	cmdStatus.Flags().BoolVar(&conf.PrintJSON, "json", conf.PrintJSON, "Print status in JSON format.")
+	cmdStatus.Flags().BoolVar(&conf.PrintJSON, "json", conf.PrintJSON, "print status in JSON format")
 
 	cmdRoot.SetHelpCommand(&cobra.Command{Hidden: true})
 	cmdRoot.AddCommand(
