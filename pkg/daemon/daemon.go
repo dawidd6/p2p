@@ -407,7 +407,7 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 	// Start a fetch loop
 	for {
 		// Start a worker pool
-		log.Println("Starting worker pool")
+		log.Println("Starting worker pool for", task.Torrent.FileHash)
 		task.WorkerPool.Start()
 
 		// Loop over torrent piece hashes
