@@ -36,6 +36,6 @@ docker pull dawidd6/p2p
 
 ## Usage
 
-Run `p2p` program to control the daemon.
-Run `p2pd` program to start the daemon.
-Run `p2ptrackerd` program to start the tracker.
+- `p2p` program to control the daemon.
+- `p2pd` program to start the daemon.
+- `p2ptrackerd` program to start the tracker.
