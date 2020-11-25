@@ -64,13 +64,13 @@ integration-test:
 	sleep 10s
 	# Get statuses
 	docker run --rm --network=$(DOCKER_NETWORK) --tty $(DOCKER_P2P_IMAGE) \
-		p2p status --host=daemon-seed-1 --port=8881 --json | jq
+		p2p status --host=daemon-seed-1 --port=8881 --json
 	docker run --rm --network=$(DOCKER_NETWORK) --tty $(DOCKER_P2P_IMAGE) \
-		p2p status --host=daemon-seed-2 --port=8882 --json | jq
+		p2p status --host=daemon-seed-2 --port=8882 --json
 	docker run --rm --network=$(DOCKER_NETWORK) --tty $(DOCKER_P2P_IMAGE) \
-		p2p status --host=daemon-leech-1 --port=8883 --json | jq
+		p2p status --host=daemon-leech-1 --port=8883 --json
 	docker run --rm --network=$(DOCKER_NETWORK) --tty $(DOCKER_P2P_IMAGE) \
-		p2p status --host=daemon-leech-2 --port=8884 --json | jq
+		p2p status --host=daemon-leech-2 --port=8884 --json
 	# Print logs
 	docker logs tracker
 	docker logs daemon-seed-1
