@@ -5,7 +5,7 @@ go 1.14
 require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/golang/protobuf v1.4.3
-	github.com/gomodule/redigo v1.8.2
+	github.com/gomodule/redigo v1.8.3
 	github.com/spf13/cobra v1.1.1
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/net v0.0.0-20201010224723-4f7140c49acb // indirect
