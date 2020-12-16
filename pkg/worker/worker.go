@@ -40,6 +40,12 @@ func (pool *Pool) Start() {
 
 // Enqueue sends a job to free worker
 func (pool *Pool) Enqueue(job func()) {
+    defer func() {
+        if r := recover(); r != nil {
+            return
+        }
+    }()
+
 	pool.channel <- job
 }
 
