@@ -150,6 +150,17 @@ func (daemon *Daemon) restore() error {
 			return err
 		}
 
+		// Get state file info
+		stateFileInfo, err := stateFile.Stat()
+		if err != nil {
+			return err
+		}
+
+		// Skip empty state file
+		if stateFileInfo.Size() == 0 {
+			continue
+		}
+
 		// Read the state from file
 		stat, err := state.Read(stateFile)
 		if err != nil {
@@ -372,18 +383,18 @@ func (daemon *Daemon) peer(task *tasker.Task) string {
 		}
 		task.PeersMutex.RUnlock()
 
-        select {
-        // Exit if deleting torrent
-        case <-task.PeerNotifier:
-            return ""
-        // Wait for peers
-        default:
-            // No good peer were found, wait for new list from tracker
-            log.Println("Waiting for peers for", task.Torrent.FileHash)
-            task.PeersAvailable.L.Lock()
-            task.PeersAvailable.Wait()
-            task.PeersAvailable.L.Unlock()
-        }
+		select {
+		// Exit if deleting torrent
+		case <-task.PeerNotifier:
+			return ""
+		// Wait for peers
+		default:
+			// No good peer were found, wait for new list from tracker
+			log.Println("Waiting for peers for", task.Torrent.FileHash)
+			task.PeersAvailable.L.Lock()
+			task.PeersAvailable.Wait()
+			task.PeersAvailable.L.Unlock()
+		}
 	}
 }
 
@@ -435,11 +446,11 @@ func (daemon *Daemon) fetching(task *tasker.Task) {
 			default:
 			}
 
-            // Get random peer address, wait if no peers available, exit if deleting torrent
-            peerAddr := daemon.peer(task)
-            if peerAddr == "" {
-                return
-            }
+			// Get random peer address, wait if no peers available, exit if deleting torrent
+			peerAddr := daemon.peer(task)
+			if peerAddr == "" {
+				return
+			}
 
 			// Send a job to a free worker, wait if workers are busy
 			task.WorkerPool.Enqueue(func() {
@@ -603,9 +614,9 @@ func (daemon *Daemon) delete(fileHash string, withData bool) error {
 	// Finish any fetching workers
 	task.WorkerPool.Stop()
 
-    // Notify any fetching workers to not wait for peer anymore
-    task.PeerNotifier <- struct{}{}
-    task.PeersAvailable.Broadcast()
+	// Notify any fetching workers to not wait for peer anymore
+	task.PeerNotifier <- struct{}{}
+	task.PeersAvailable.Broadcast()
 
 	// Remove downloaded torrent data if desired
 	if withData {
