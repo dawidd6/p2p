@@ -27,6 +27,7 @@ type Task struct {
 	ResumeNotifier chan struct{}
 	PauseNotifier  chan struct{}
 	DeleteNotifier chan struct{}
+    PeerNotifier chan struct{}
 
 	PeersAvailable *sync.Cond
 	PeersMutex     sync.RWMutex
@@ -57,6 +58,7 @@ func New(torr *torrent.Torrent, stat *state.State, conf *config.Config) *Task {
 		ResumeNotifier: make(chan struct{}, 1),
 		PauseNotifier:  make(chan struct{}, 1),
 		DeleteNotifier: make(chan struct{}, 1),
+		PeerNotifier: make(chan struct{}, 1),
 
 		PeersAvailable: sync.NewCond(&sync.Mutex{}),
 
