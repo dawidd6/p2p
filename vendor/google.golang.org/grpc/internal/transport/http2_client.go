@@ -33,6 +33,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/hpack"
 	"google.golang.org/grpc/internal/grpcutil"
+	"google.golang.org/grpc/internal/transport/networktype"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -137,11 +138,27 @@ type http2Client struct {
 	connectionID uint64
 }
 
-func dial(ctx context.Context, fn func(context.Context, string) (net.Conn, error), addr string) (net.Conn, error) {
+func dial(ctx context.Context, fn func(context.Context, string) (net.Conn, error), addr resolver.Address, useProxy bool, grpcUA string) (net.Conn, error) {
+	address := addr.Addr
+	networkType, ok := networktype.Get(addr)
 	if fn != nil {
-		return fn(ctx, addr)
+		if networkType == "unix" {
+			// For backward compatibility, if the user dialed "unix:///path",
+			// the passthrough resolver would be used and the user's custom
+			// dialer would see "unix:///path". Since the unix resolver is used
+			// and the address is now "/path", prepend "unix://" so the user's
+			// custom dialer sees the same address.
+			return fn(ctx, "unix://"+address)
+		}
+		return fn(ctx, address)
 	}
-	return (&net.Dialer{}).DialContext(ctx, "tcp", addr)
+	if !ok {
+		networkType, address = parseDialTarget(address)
+	}
+	if networkType == "tcp" && useProxy {
+		return proxyDial(ctx, address, grpcUA)
+	}
+	return (&net.Dialer{}).DialContext(ctx, networkType, address)
 }
 
 func isTemporary(err error) bool {
@@ -172,7 +189,7 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 		}
 	}()
 
-	conn, err := dial(connectCtx, opts.Dialer, addr.Addr)
+	conn, err := dial(connectCtx, opts.Dialer, addr, opts.UseProxy, opts.UserAgent)
 	if err != nil {
 		if opts.FailOnNonTempDialError {
 			return nil, connectionErrorf(isTemporary(err), err, "transport: error while dialing: %v", err)
@@ -225,6 +242,18 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 		conn, authInfo, err = transportCreds.ClientHandshake(connectCtx, addr.ServerName, conn)
 		if err != nil {
 			return nil, connectionErrorf(isTemporary(err), err, "transport: authentication handshake failed: %v", err)
+		}
+		for _, cd := range perRPCCreds {
+			if cd.RequireTransportSecurity() {
+				if ci, ok := authInfo.(interface {
+					GetCommonAuthInfo() credentials.CommonAuthInfo
+				}); ok {
+					secLevel := ci.GetCommonAuthInfo().SecurityLevel
+					if secLevel != credentials.InvalidSecurityLevel && secLevel < credentials.PrivacyAndIntegrity {
+						return nil, connectionErrorf(true, nil, "transport: cannot send secure credentials on an insecure connection")
+					}
+				}
+			}
 		}
 		isSecure = true
 		if transportCreds.Info().SecurityProtocol == "tls" {
@@ -481,14 +510,14 @@ func (t *http2Client) createHeaderFields(ctx context.Context, callHdr *CallHdr) 
 		for _, vv := range added {
 			for i, v := range vv {
 				if i%2 == 0 {
-					k = v
+					k = strings.ToLower(v)
 					continue
 				}
 				// HTTP doesn't allow you to set pseudoheaders after non pseudoheaders were set.
 				if isReservedHeader(k) {
 					continue
 				}
-				headerFields = append(headerFields, hpack.HeaderField{Name: strings.ToLower(k), Value: encodeMetadataHeader(k, v)})
+				headerFields = append(headerFields, hpack.HeaderField{Name: k, Value: encodeMetadataHeader(k, v)})
 			}
 		}
 	}
@@ -549,8 +578,11 @@ func (t *http2Client) getCallAuthData(ctx context.Context, audience string, call
 	// Note: if these credentials are provided both via dial options and call
 	// options, then both sets of credentials will be applied.
 	if callCreds := callHdr.Creds; callCreds != nil {
-		if !t.isSecure && callCreds.RequireTransportSecurity() {
-			return nil, status.Error(codes.Unauthenticated, "transport: cannot send secure credentials on an insecure connection")
+		if callCreds.RequireTransportSecurity() {
+			ri, _ := credentials.RequestInfoFromContext(ctx)
+			if !t.isSecure || credentials.CheckSecurityLevel(ri.AuthInfo, credentials.PrivacyAndIntegrity) != nil {
+				return nil, status.Error(codes.Unauthenticated, "transport: cannot send secure credentials on an insecure connection")
+			}
 		}
 		data, err := callCreds.GetRequestMetadata(ctx, audience)
 		if err != nil {
